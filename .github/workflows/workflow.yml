@@ -184,5 +184,5 @@ jobs:
               ],
               "initial_comment": "Kubescape scan report (NSA framework) attached."
             }
-          env:
-            SLACK_FILE_0: "${{ github.workspace }}/kubescape_report.pdf"
+        env:
+          SLACK_FILE_0: "${{ github.workspace }}/kubescape_report.pdf"
