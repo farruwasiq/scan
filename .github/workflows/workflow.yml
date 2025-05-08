@@ -43,6 +43,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq
 
+          # Check if kubescape_report.json exists and is not empty
+          if [ ! -s "kubescape_report.json" ]; then
+            echo "Error: kubescape_report.json is empty or does not exist. Skipping PDF conversion."
+            exit 1
+          fi
+
           # Convert JSON to a more structured format for PDF generation
           report_data=$(cat kubescape_report.json | jq '{
             "metadata": {
@@ -68,6 +74,7 @@ jobs:
           # Python script to generate PDF (save as generate_pdf.py)
           python <<EOF > generate_pdf.py
           import json
+          import sys
           from reportlab.lib.pagesizes import letter
           from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
           from reportlab.lib.styles import getSampleStyleSheet
@@ -79,9 +86,21 @@ jobs:
               doc = SimpleDocTemplate(output_pdf, pagesize=letter)
               elements = []
 
-              # Load the JSON data
-              with open(json_file, 'r') as f:
-                  data = json.load(f)
+              try:
+                  # Load the JSON data
+                  with open(json_file, 'r') as f:
+                      data = json.load(f)
+              except json.JSONDecodeError as e:
+                  print(f"Error: Invalid JSON format in {json_file}: {e}")
+                  sys.exit(1)
+              except FileNotFoundError:
+                  print(f"Error: File not found: {json_file}")
+                  sys.exit(1)
+
+              # Check if the "results" key exists and is not null
+              if "results" not in data or data["results"] is None:
+                  print("Error: 'results' key is missing or null in JSON data.  Cannot generate PDF.")
+                  sys.exit(1)
 
               # Metadata
               metadata_title = Paragraph("<b>Kubescape Scan Report</b>", styles['h1'])
@@ -144,12 +163,10 @@ jobs:
         uses: slackapi/slack-github-action@v2
         if: always()  # Ensure this runs even if previous steps fail
         with:
-          slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_TOKEN }} # Use the token
-          slack-method: files.upload
-          slack-method-args: |
-            {
-              "channels": "#all-test-scan",
-              "file": "${{ github.workspace }}/kubescape_report.pdf",
-              "filename": "kubescape_report.pdf",
-              "initial_comment": "Kubescape scan report (NSA framework) attached."
-            }
+          token: ${{ secrets.SLACK_BOT_TOKEN }} # Use the token
+          method: files.upload
+        
+          channel: "#your-slack-channel"
+          file: "${{ github.workspace }}/kubescape_report.pdf"
+          filename: "kubescape_report.pdf"
+          initial_comment: "Kubescape scan report (NSA framework) attached."
