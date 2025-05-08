@@ -1,53 +1,3 @@
-# name: Kubescape Scan
-
-# on:
-#   push:
-#     branches:
-#       - main
-#   workflow_dispatch:
-
-# jobs:
-#   kubescape_scan:
-#     runs-on: ubuntu-latest
-#     permissions:
-#       actions: read
-#       contents: read
-#       security-events: write
-
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v4
-
-#       - name: Set up Minikube
-#         uses: medyagh/setup-minikube@latest
-#         with:
-#           kubernetes-version: 'latest'
-
-#       - name: Wait for Minikube to be Ready
-#         run: kubectl wait --for=condition=ready node/minikube --timeout=60s
-
-#       - name: Install Kubescape (if not already present)
-#         run: |
-#           if ! command -v kubescape &> /dev/null; then
-#             curl -s https://raw.githubusercontent.com/armosec/kubescape/master/install.sh | sudo bash
-#           fi
-#           kubescape version
-
-#       # - name: Run Kubescape Scan and Add to Summary
-#       #   run: |
-#       #     echo "## Kubescape Scan Summary" >> $GITHUB_STEP_SUMMARY
-#       #     kubescape scan --format pretty-printer | sed -e 's/\x1B\[[0-9;]*[mG]//g' >> $GITHUB_STEP_SUMMARY
-
-#       - name: Run Kubescape Scan and Add to Summary
-#         run: |
-#           echo "## Kubescape Scan Summary" >> $GITHUB_STEP_SUMMARY
-#           #kubescape scan framework nsa -v --format pretty-printer | sed -e 's/\x1B\[[0-9;]*[mG]//g' | sed 's/^┌/|/g; s/┐$/|/g; s/├/|/g; s/┤$/|/g; s/│/|/g; s/└/|/g; s/┘$/|/g' >> $GITHUB_STEP_SUMMARY
-#           kubescape scan framework nsa -v --format pretty-printer >> $GITHUB_STEP_SUMMARY
-
-
-
-
-
 name: Kubescape Scan and Slack Report
 
 on:
@@ -83,25 +33,123 @@ jobs:
           fi
           kubescape version
 
-      - name: Run Kubescape Scan
+      - name: Run Kubescape Scan and Generate JSON Report
         id: kubescape-scan
         run: kubescape scan framework nsa -v --format json --output kubescape_report.json
 
-      - name: Install Python and fpdf2
+      - name: Convert JSON to PDF Report
         run: |
+          # Install jq (if not already installed)
           sudo apt-get update
-          sudo apt-get install -y python3 python3-pip
-          pip install fpdf2
+          sudo apt-get install -y jq
 
-      - name: Generate PDF Report
-        run: python .github/workflows/generate_pdf_report.py kubescape_report.json kubescape_report.pdf
+          # Convert JSON to a more structured format for PDF generation
+          report_data=$(cat kubescape_report.json | jq '{
+            "metadata": {
+              "scanDate": now | strftime("%Y-%m-%d %H:%M:%S"),
+              "framework": "NSA"
+            },
+            "results": .Results | map({
+              "controlName": .Name,
+              "controlId": .ControlID,
+              "status": .Status,
+              "message": .Message,
+              "remediation": .Remediation,
+              "severity": .Severity
+            })
+          }')
 
-      - name: Slack Notification
-        uses: slackapi/slack-github-action/slack@<specific_commit_sha>
+          # Create a temporary file to hold the structured data
+          echo "$report_data" > structured_report.json
+
+          # Install reportlab for PDF generation
+          pip install reportlab
+
+          # Python script to generate PDF (save as generate_pdf.py)
+          python <<EOF > generate_pdf.py
+          import json
+          from reportlab.lib.pagesizes import letter
+          from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+          from reportlab.lib.styles import getSampleStyleSheet
+          from reportlab.lib.units import inch
+          from reportlab.lib.colors import HexColor
+
+          def generate_pdf(json_file, output_pdf):
+              styles = getSampleStyleSheet()
+              doc = SimpleDocTemplate(output_pdf, pagesize=letter)
+              elements = []
+
+              # Load the JSON data
+              with open(json_file, 'r') as f:
+                  data = json.load(f)
+
+              # Metadata
+              metadata_title = Paragraph("<b>Kubescape Scan Report</b>", styles['h1'])
+              elements.append(metadata_title)
+              elements.append(Spacer(1, 0.2*inch))
+
+              metadata_table = [
+                  ["Scan Date", data["metadata"]["scanDate"]],
+                  ["Framework", data["metadata"]["framework"]]
+              ]
+              metadata_table_style = TableStyle([
+                  ('BACKGROUND', (0,0), (0,-1), HexColor("#EEEEEE")),
+                  ('TEXTCOLOR', (0,0), (0,-1), HexColor("#444444")),
+                  ('ALIGN', (0,0), (0,-1), 'LEFT'),
+                  ('FONTNAME', (0,0), (0,-1), 'Helvetica-Bold'),
+                  ('FONTSIZE', (0,0), (0,-1), 10),
+                  ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+              ])
+              metadata_table_obj = Table(metadata_table, style=metadata_table_style)
+              elements.append(metadata_table_obj)
+              elements.append(Spacer(1, 0.2*inch))
+
+              # Results Table
+              results_title = Paragraph("<b>Scan Results</b>", styles['h2'])
+              elements.append(results_title)
+              elements.append(Spacer(1, 0.2*inch))
+
+              table_data = [["Control ID", "Control Name", "Status", "Severity", "Message", "Remediation"]]
+              for result in data["results"]:
+                  table_data.append([
+                      result["controlId"],
+                      result["controlName"],
+                      result["status"],
+                      result["severity"],
+                      Paragraph(result["message"], styles['Normal']),  # Use Paragraph for wrapping
+                      Paragraph(result["remediation"], styles['Normal']) # Use Paragraph for wrapping
+                  ])
+
+              table_style = TableStyle([
+                  ('BACKGROUND', (0,0), (-1,0), HexColor("#4682B4")), # SteelBlue
+                  ('TEXTCOLOR', (0,0), (-1,0), HexColor("#FFFFFF")),
+                  ('ALIGN', (0,0), (-1,0), 'CENTER'),
+                  ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                  ('FONTSIZE', (0,0), (-1,0), 10),
+                  ('GRID', (0,0), (-1,-1), 1, HexColor("#D3D3D3")), # LightGray
+                  ('VALIGN', (0,0), (-1,-1), 'TOP'),  # Align content to the top
+                  ('WORDWRAP', (4,0), (5,-1), True), # Enable word wrap for message and remediation
+                  ('FONTSIZE', (0,1), (-1,-1), 9),
+              ])
+              table_obj = Table(table_data, colWidths=[0.8*inch, 1.5*inch, 0.8*inch, 0.8*inch, 2.5*inch, 2.5*inch], style=table_style) #Set the column widths
+              elements.append(table_obj)
+
+              doc.build(elements)
+
+          if __name__ == "__main__":
+              generate_pdf("structured_report.json", "kubescape_report.pdf")
+          EOF
+
+      - name: Upload PDF Report to Slack
+        uses: slackapi/slack-github-action@v2
+        if: always()  # Ensure this runs even if previous steps fail
         with:
-          slack-webhook-uri: ${{ secrets.SLACK_WEBHOOK_URI }}
-          files: kubescape_report.pdf
-          title: "Kubescape Scan Report"
-          initial-comment: "Kubescape scan report for the latest commit on ${{ github.ref_name }}"
-
-      
+          slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_TOKEN }} # Use the token
+          slack-method: files.upload
+          slack-method-args: |
+            {
+              "channels": "#all-test-scan",
+              "file": "${{ github.workspace }}/kubescape_report.pdf",
+              "filename": "kubescape_report.pdf",
+              "initial_comment": "Kubescape scan report (NSA framework) attached."
+            }
