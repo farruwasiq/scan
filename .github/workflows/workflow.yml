@@ -98,7 +98,7 @@ jobs:
               "Category: \(.value.category.name)\\n" +
               "Score: \(.value.score)\\n\\n" +
               "Failed Resources:\\n" +
-              (if .value.failedResources > 0 then
+              (if .value.status == "failed" and (.value.resourceIDs | keys | length) > 0 then
                 (.value.resourceIDs | keys | map("  - \(.)") | join("\\n"))
               else
                 "  No failed resources for this control"
@@ -111,28 +111,4 @@ jobs:
             echo "No Kubescape report file found." >> $GITHUB_STEP_SUMMARY
           fi
 
-      # - name: Format Kubescape Results
-      #   if: always()
-      #   run: |
-      #     if [ -f kubescape_report.json ]; then
-      #       report=$(cat kubescape_report.json | jq -r '.results[] |
-      #         "################################################################################\\n" +
-      #         "ApiVersion: \(.apiVersion)\\n" +
-      #         "Kind: \(.kind)\\n" +
-      #         "Name: \(.name)\\n" +
-      #         "Namespace: \(.namespace)\\n\\n" +
-      #         "Controls: \(.failedControls) (Failed: \(.failedControls), action required: \(.actionRequiredControls))\\n\\n" +
-      #         "Severity | Control name                   | Docs                               | Assisted remediation\\n" +
-      #         "---|---|---|---\\n" +
-      #         (if .failedControlsDetails then
-      #           (.failedControlsDetails[] | "\(.severity)|\(.controlName)|\(.docsUrl)|\(.remediation)") | map("|\(.)|") | join("\\n")
-      #         else
-      #           ""
-      #         end) + "\\n\\n"'
-      #       )
-      #       echo "## Kubescape Scan Results (NSA Framework)" >> $GITHUB_STEP_SUMMARY
-      #       echo "$report" >> $GITHUB_STEP_SUMMARY
-      #     else
-      #       echo "## Kubescape Scan Results (NSA Framework)" >> $GITHUB_STEP_SUMMARY
-      #       echo "No Kubescape report file found." >> $GITHUB_STEP_SUMMARY
-      #     fi
+      
