@@ -98,7 +98,7 @@ jobs:
               "Category: \(.value.category.name)\\n" +
               "Score: \(.value.score)\\n\\n" +
               "Failed Resources:\\n" +
-              (if .value.status == "failed" and (.value.resourceIDs | length) > 0 then
+              (if .value.status == "failed" and (.value | has("resourceIDs")) then
                 (.value.resourceIDs | keys | map("  - \(.)") | join("\\n"))
               else
                 "  No failed resources for this control"
