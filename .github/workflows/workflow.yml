@@ -51,9 +51,11 @@ jobs:
           SLACK_CHANNEL_ID: 'C08RG8A30M9'
           KUBESCAPE_REPORT: ${{ steps.format-results.outputs.slack_report }}
         run: |
+          payload=$(echo "$KUBESCAPE_REPORT" | jq -Rs --arg channel "$SLACK_CHANNEL_ID" \
+            '{
+              channel: $channel,
+              text: "*Kubescape Scan Report:*\n" + .
+            }')
           curl -X POST -H 'Content-type: application/json' \
-          --data "{
-              \"channel\": \"$SLACK_CHANNEL_ID\",
-              \"text\": \"*Kubescape Scan Report:*\n$KUBESCAPE_REPORT\"
-            }" \
+          --data "$payload" \
           "$SLACK_WEBHOOK_URL"
