@@ -23,6 +23,9 @@ jobs:
         with:
           kubernetes-version: 'latest'
 
+      - name: Wait for Minikube to be Ready
+        run: kubectl wait --for=condition=ready node/minikube --timeout=60s
+        
       - name: Run Kubescape Scan
         uses: kubescape/github-action@main
         with:
