@@ -106,6 +106,7 @@ jobs:
               else
                 ""
               end')
+            echo "Report content: $report"
             echo "## Kubescape Scan Results (Grouped by Resource)" >> $GITHUB_STEP_SUMMARY
             echo "$report" >> $GITHUB_STEP_SUMMARY
           else
