@@ -104,7 +104,7 @@ jobs:
               "Controls: \(.failedControls) (Failed: \(.failedControls), action required: \(.actionRequiredControls))\\n\\n" +
               "Severity | Control name                   | Docs                               | Assisted remediation\\n" +
               "---|---|---|---\\n" +
-              ([.failedControlsDetails[] | "\(.severity)|\(.controlName)|\(.docsUrl)|\(.remediation)"] | map("|\(.)|") | join("\\n")) + "\\n\\n"'
+              (if .failedControlsDetails then ([.failedControlsDetails[] | "\(.severity)|\(.controlName)|\(.docsUrl)|\(.remediation)"] | map("|\(.)|") | join("\\n")) else "") + "\\n\\n"'
             )
             echo "## Kubescape Scan Results (NSA Framework)" >> $GITHUB_STEP_SUMMARY
             echo "$report" >> $GITHUB_STEP_SUMMARY
