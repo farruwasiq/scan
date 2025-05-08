@@ -1,21 +1,53 @@
-name: Slack Notification Test
+name: Kubescape Scan
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
-  slack_notify:
+  kubescape_scan:
     runs-on: ubuntu-latest
     steps:
-      - name: Send Slack notification (via payload)
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Minikube
+        uses: manusa/actions-setup-minikube@latest
+        with:
+          minikube-version: 'latest'
+          kubernetes-version: 'latest'
+          addons: 'default-storageclass'
+
+      - name: Install Kubescape
+        run: |
+          curl -s https://raw.githubusercontent.com/armosec/kubescape/master/install.sh | sudo bash
+          kubescape version
+
+      - name: Run Kubescape on Minikube
+        id: kubescape-scan-cluster
+        run: kubescape scan --format json --output results.json
+
+      - name: Format Kubescape Results for Slack
+        id: format-results
+        run: |
+          if [ -f results.json ]; then
+            report=$(cat results.json | jq -c '.results[] | "*Rule:* \(.ruleName), *Status:* \(.status), *Severity:* \(.severity)"' | paste -sd "\n")
+            echo "::set-output name=slack_report::$report"
+          else
+            echo "::set-output name=slack_report::No Kubescape results found."
+          fi
+      - name: Send Kubescape Report to Slack
+        if: always()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_CHANNEL_ID: 'C08RG8A30M9'
-          SLACK_MESSAGE: 'Hello from GitHub Actions asdfasdfasdfasdfasdf!'
+          SLACK_CHANNEL_ID: 'C08RG8A30M9' # Using the channel ID from our previous discussion
+          KUBESCAPE_REPORT: ${{ steps.format-results.outputs.slack_report }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
           --data "{
               \"channel\": \"$SLACK_CHANNEL_ID\",
-              \"text\": \"$SLACK_MESSAGE\"
+              \"text\": \"*Kubescape Scan Report:*\n$KUBESCAPE_REPORT\"
             }" \
           "$SLACK_WEBHOOK_URL"
