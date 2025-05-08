@@ -46,7 +46,11 @@ jobs:
           else
             echo "Kubescape scan completed successfully.  Output written to kubescape_report.json"
             cat kubescape_report.json # Output the contents for debugging
+            echo "::set-output name=json_valid::true"
           fi
+
+      - name: Debug Output - json_valid
+        run: echo "Value of json_valid: ${{ steps.run_kubescape_scan.outputs.json_valid }}" # Added debug
 
       - name: Convert JSON to PDF Report
         if: steps.run_kubescape_scan.outputs.json_valid == 'true'
