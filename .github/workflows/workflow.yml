@@ -49,7 +49,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq
 
-
+          # Check if kubescape_report.json is empty *before* using jq
+          if [ ! -s "kubescape_report.json" ]; then
+            echo "Error: kubescape_report.json is empty. Skipping PDF conversion."
+            exit 0 # Exit gracefully, don't fail the workflow
+          fi
 
           # Convert JSON to a more structured format for PDF generation
           report_data=$(cat kubescape_report.json | jq '{
@@ -77,6 +81,8 @@ jobs:
           python <<EOF > generate_pdf.py
           import json
           import sys
+          import os  # Import the os module
+
           from reportlab.lib.pagesizes import letter
           from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
           from reportlab.lib.styles import getSampleStyleSheet
@@ -159,7 +165,6 @@ jobs:
 
           if __name__ == "__main__":
               # Check if structured_report.json exists before generating PDF.
-              import os
               if os.path.exists("structured_report.json"):
                   generate_pdf("structured_report.json", "kubescape_report.pdf")
               else:
