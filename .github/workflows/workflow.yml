@@ -101,9 +101,13 @@ jobs:
       - name: Install Trivy
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget
-          wget https://github.com/aquasecurity/trivy/releases/download/v0.49.1/trivy_0.49.1_Linux-x86_64.deb #hardcoded the version.
-          sudo dpkg -i trivy_0.49.1_Linux-x86_64.deb
+          sudo apt-get install -y apt-transport-https curl
+
+          curl -sSL https://aquasecurity.github.io/trivy-repo/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb stable main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+
           trivy version
 
       - name: Run Trivy k8s scan
