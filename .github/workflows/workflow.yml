@@ -48,7 +48,7 @@
 
 
 
-name: Kubescape Scan
+name: Kubescape Scan and Slack Report
 
 on:
   push:
@@ -57,7 +57,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  kubescape_scan:
+  kubescape_scan_slack:
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -87,27 +87,21 @@ jobs:
         id: kubescape-scan
         run: kubescape scan framework nsa -v --format json --output kubescape_report.json
 
-      - name: Format Kubescape Results
-        if: always()
+      - name: Install Python and fpdf2
         run: |
-          if [ -f kubescape_report.json ]; then
-            report=$(cat kubescape_report.json | jq -r '.results[] |
-              . as $resource |
-              .controls[] |
-              select(.status.status != "passed") |
-              "################################################################################\\n" +
-              (
-                $resource.resourceID | split("/") |
-                (["Namespace", "Kind", "Name"] | map(., .[.])) | @sh
-              ) + "\\n" +
-              "Control Name: \(.name)\\n" +
-              "Status: \(.status.status)\\n" +
-              "Control ID: \(.controlID)\\n\\n"')
-            echo "## Kubescape Scan Results (Grouped by Resource)" >> $GITHUB_STEP_SUMMARY
-            echo "$report" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "## Kubescape Scan Results (Grouped by Resource)" >> $GITHUB_STEP_SUMMARY
-            echo "No Kubescape report file found." >> $GITHUB_STEP_SUMMARY
-          fi
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip
+          pip install fpdf2
+
+      - name: Generate PDF Report
+        run: python .github/workflows/generate_pdf_report.py kubescape_report.json kubescape_report.pdf
+
+      - name: Slack Notification
+        uses: slackapi/slack-github-action@v6
+        with:
+          slack-webhook-uri: ${{ secrets.SLACK_WEBHOOK_URI }}
+          files: kubescape_report.pdf
+          title: "Kubescape Scan Report"
+          initial-comment: "Kubescape scan report for the latest commit on ${{ github.ref_name }}"
 
       
