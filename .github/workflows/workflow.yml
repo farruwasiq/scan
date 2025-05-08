@@ -12,7 +12,7 @@ jobs:
     permissions:
       actions: read
       contents: read
-      security-events: write # Required for SARIF output if you choose that format
+      security-events: write
 
     steps:
       - name: Checkout code
@@ -25,21 +25,21 @@ jobs:
 
       - name: Wait for Minikube to be Ready
         run: kubectl wait --for=condition=ready node/minikube --timeout=60s
-        
+
+      - name: Install Kubescape (if not already present)
+        run: |
+          if ! command -v kubescape &> /dev/null; then
+            curl -s https://raw.githubusercontent.com/armosec/kubescape/master/install.sh | sudo bash
+          fi
+          kubescape version
+
       - name: Run Kubescape Scan
-        uses: kubescape/github-action@main
-        with:
-          format: text # Or try 'sarif' for GitHub Code Scanning
-          outputFile: kubescape-report # Optional, but can be useful for debugging
+        id: kubescape-scan
+        run: |
+          report=$(kubescape scan --format text)
+          echo "::set-output name=report::$report"
 
       - name: Add Kubescape Report to Summary
-        if: always() # Ensure this runs even if the scan fails (adjust as needed)
         run: |
-          if [ -f kubescape-report ]; then
-            report=$(cat kubescape-report)
-            echo "## Kubescape Scan Summary" >> $GITHUB_STEP_SUMMARY
-            echo "$report" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "## Kubescape Scan Summary" >> $GITHUB_STEP_SUMMARY
-            echo "No Kubescape report found." >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "## Kubescape Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.kubescape-scan.outputs.report }}" >> $GITHUB_STEP_SUMMARY
