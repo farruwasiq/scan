@@ -113,11 +113,13 @@ jobs:
       - name: Run Trivy k8s scan
         uses: aquasecurity/trivy-action@master
         with:
-          scanType: 'k8s'
+          scan-type: 'k8s'
+          scan-ref: .
           scanners: 'misconfig'
           format: 'json'
           output: 'trivy_report.json'
           k8sConfig: ~/.kube/config
+          ignore-unfixed: true
 
       - name: Summarize Trivy Scan Results
         if: success()
