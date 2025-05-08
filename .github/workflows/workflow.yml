@@ -13,8 +13,6 @@ jobs:
       actions: read
       contents: read
       security-events: write
-    outputs:
-      json_valid: ${{ steps.run_kubescape_scan.outputs.json_valid }} # Corrected output reference
 
     steps:
       - name: Checkout code
@@ -49,9 +47,11 @@ jobs:
             cat kubescape_report.json # Output the contents for debugging
             echo "::set-output name=json_valid::true"
           fi
+        outputs:
+          json_valid: ${{ steps.run_kubescape_scan.outputs.json_valid }}
 
       - name: Convert JSON to PDF Report
-        if: needs.kubescape_scan_slack.outputs.json_valid == 'true'
+        if: steps.run_kubescape_scan.outputs.json_valid == 'true' # Corrected condition
         run: |
           # Install jq (if not already installed)
           sudo apt-get update
@@ -170,8 +170,7 @@ jobs:
 
               table_style = TableStyle([
                   ('BACKGROUND', (0,0), (-1,0), HexColor("#4682B4")), # SteelBlue
-                  ('TEXTCOLOR', (0,0), (-1,0), HexColor("#FFFFFF")),
-                  ('ALIGN', (0,0), (-1,0), 'CENTER'),
+                  ('TEXTCOLOR', (0,0), (-1,0), 'CENTER'),
                   ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
                   ('FONTSIZE', (0,0), (-1,0), 10),
                   ('GRID', (0,0), (-1,-1), 1, HexColor("#D3D3D3")), # LightGray
@@ -194,7 +193,7 @@ jobs:
           EOF
 
       - name: Upload PDF Report to Slack
-        if: needs.kubescape_scan_slack.outputs.json_valid == 'true'
+        if: steps.run_kubescape_scan.outputs.json_valid == 'true' # Corrected condition
         uses: slackapi/slack-github-action@v2
         with:
           token: ${{ secrets.SLACK_BOT_TOKEN }}
