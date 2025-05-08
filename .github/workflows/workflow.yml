@@ -23,8 +23,6 @@ jobs:
         with:
           kubernetes-version: 'latest'
 
-      - name: Install Kubescape (Implicitly done by the action)
-
       - name: Run Kubescape Scan
         uses: kubescape/github-action@main
         with:
