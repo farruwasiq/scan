@@ -77,14 +77,14 @@ jobs:
           # Output the summary to GitHub Actions summary
           echo "## Kubescape Scan Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Total Controls: $(echo "$summary" | jq -r .total_controls)" >> $GITHUB_STEP_SUMMARY
-          echo "Failed Controls: $(echo "$summary" | jq -r .failed_controls)" >> $GITHUB_STEP_SUMMARY
-          echo "Passed Controls: $(echo "$summary" | jq -r .passed_controls)" >> $GITHUB_STEP_SUMMARY
-          echo "Compliance: $(echo "$summary" | jq -r .compliance_percentage | printf '%.2f%%')" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Controls | Failed Controls | Passed Controls | Compliance |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|---|---| " >> $GITHUB_STEP_SUMMARY
+          echo "| $(echo "$summary" | jq -r .total_controls) | $(echo "$summary" | jq -r .failed_controls) | $(echo "$summary" | jq -r .passed_controls) | $(echo "$summary" | jq -r .compliance_percentage | printf '%.2f%%') |" >> $GITHUB_STEP_SUMMARY
+          
 
           # Extract and output detailed results for each failed control
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Detailed Results" >> $GITHUB_STEP_SUMMARY
+          echo "### Failed Controls" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Filter and get failed results as a JSON array
@@ -92,7 +92,9 @@ jobs:
 
           # Use jq to iterate and format the output
           if [[ $(echo "$failed_results_json" | jq length) -gt 0 ]]; then
-            echo "$failed_results_json" | jq -r '.[] | "<details><summary><strong>\(.Name) (\(.ControlID)) - Severity: \(.Severity)</strong></summary>\n\n  **Message:** \(.Message)  \n\n  **Remediation:** \(.Remediation)  \n</details>\n"' >> $GITHUB_STEP_SUMMARY
+            echo "| Severity | Control Name | Docs | Assisted Remediation |" >> $GITHUB_STEP_SUMMARY
+            echo "|---|---|---|---| " >> $GITHUB_STEP_SUMMARY
+            echo "$failed_results_json" | jq -r '.[] | "\(.Severity) | \(.Name) | [Link](https://hub.armosec.io/docs/\(.ControlID)) | \(.Remediation) |"' >> $GITHUB_STEP_SUMMARY
           else
             echo "No failed controls found." >> $GITHUB_STEP_SUMMARY
           fi
