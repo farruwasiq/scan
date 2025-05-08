@@ -47,7 +47,7 @@ jobs:
           report_lines=$(echo "$KUBESCAPE_REPORT" | jq -R -s 'split("\n")')
           payload=$(jq -n --arg channel "$SLACK_CHANNEL_ID" --argjson report_array "$report_lines" '{
             channel: $channel,
-            text: "*Kubescape Scan Report:*\n" + ($report_array | join("\n"))
+            text: "\("*Kubescape Scan Report:\\n" + ($report_array | join("\\n")) + "\")"
           }')
           curl -X POST -H 'Content-type: application/json' \
           --data "$payload" \
