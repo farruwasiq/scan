@@ -37,7 +37,7 @@ jobs:
         id: kubescape-scan
         run: |
           report=$(kubescape scan --format text)
-          echo "::set-output name=report::$report"
+          echo "report=$report" >> "$GITHUB_OUTPUT"
 
       - name: Add Kubescape Report to Summary
         run: |
