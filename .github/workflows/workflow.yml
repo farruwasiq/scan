@@ -91,16 +91,14 @@ jobs:
         if: always()
         run: cat kubescape_report.json
 
-      - name: Format Kubescape Results as Markdown Table
+      - name: Format Kubescape Results
         if: always()
         run: |
           if [ -f kubescape_report.json ]; then
-            report=$(cat kubescape_report.json | jq -r '.results[] | "|\(.ruleName)|\(.status)|\(.severity)|\(.description)|"')
-            echo "## Kubescape Scan Results" >> $GITHUB_STEP_SUMMARY
-            echo "| Rule | Status | Severity | Description |" >> $GITHUB_STEP_SUMMARY
-            echo "|---|---|---|---| " >> $GITHUB_STEP_SUMMARY
+            report=$(cat kubescape_report.json | jq -r '.results[] | "################################################################################\nApiVersion: \(.apiVersion)\nKind: \(.kind)\nName: \(.name)\nNamespace: \(.namespace)\n\nControls: \(.failedControls) (Failed: \(.failedControls), action required: \(.actionRequiredControls))\n\nSeverity | Control name                   | Docs                               | Assisted remediation\n---|---|---|---\n\(.failedControlsDetails[] | \"|\(.severity)\|\(.controlName)\|\(.docsUrl)\|\(.remediation)\|\")\n\n"')
+            echo "## Kubescape Scan Results (NSA Framework)" >> $GITHUB_STEP_SUMMARY
             echo "$report" >> $GITHUB_STEP_SUMMARY
           else
-            echo "## Kubescape Scan Results" >> $GITHUB_STEP_SUMMARY
+            echo "## Kubescape Scan Results (NSA Framework)" >> $GITHUB_STEP_SUMMARY
             echo "No Kubescape report file found." >> $GITHUB_STEP_SUMMARY
           fi
