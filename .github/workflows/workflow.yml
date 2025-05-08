@@ -33,19 +33,7 @@ jobs:
           fi
           kubescape version
 
-      - name: Run Kubescape Scan
-        id: kubescape-scan
-        run: |
-          kubescape scan --format pretty-printer > kubescape_report.txt
-          report=$(cat kubescape_report.txt | sed -e 's/\x1B\[[0-9;]*[mG]//g')
-          echo "report=$report" >> "$GITHUB_OUTPUT"
-
-      - name: Add Kubescape Report to Summary
+      - name: Run Kubescape Scan and Add to Summary
         run: |
           echo "## Kubescape Scan Summary" >> $GITHUB_STEP_SUMMARY
-          if [ -f kubescape_report.txt ]; then
-            report_content=$(cat kubescape_report.txt | sed -e 's/\x1B\[[0-9;]*[mG]//g')
-            echo "$report_content" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "No Kubescape report file found." >> $GITHUB_STEP_SUMMARY
-          fi
+          kubescape scan --format pretty-printer | sed -e 's/\x1B\[[0-9;]*[mG]//g' >> $GITHUB_STEP_SUMMARY
