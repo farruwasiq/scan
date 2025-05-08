@@ -85,10 +85,31 @@ jobs:
 
       - name: Run Kubescape Scan
         id: kubescape-scan
-        run: |
-          kubescape scan framework nsa -v  >> $GITHUB_STEP_SUMMARY
+        run: kubescape scan framework nsa -v --format json --output kubescape_report.json
 
-      
+      - name: Format Kubescape Results
+        if: always()
+        run: |
+          if [ -f kubescape_report.json ]; then
+            report=$(cat kubescape_report.json | jq -r '.summaryDetails.controls | to_entries[] |
+              "################################################################################\\n" +
+              "Control Name: \(.value.name)\\n" +
+              "Status: \(.value.status)\\n" +
+              "Category: \(.value.category.name)\\n" +
+              "Score: \(.value.score)\\n\\n" +
+              "Failed Resources:\\n" +
+              (if .value.failedResources > 0 then
+                (.value.resourceIDs | keys | map("  - \(.)") | join("\\n"))
+              else
+                "  No failed resources for this control"
+              end) + "\\n\\n"'
+            )
+            echo "## Kubescape Scan Results (NSA Framework)" >> $GITHUB_STEP_SUMMARY
+            echo "$report" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## Kubescape Scan Results (NSA Framework)" >> $GITHUB_STEP_SUMMARY
+            echo "No Kubescape report file found." >> $GITHUB_STEP_SUMMARY
+          fi
 
       # - name: Format Kubescape Results
       #   if: always()
