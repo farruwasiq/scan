@@ -52,49 +52,30 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq
 
-          # Read the JSON report
+          # Read the JSON report and construct the complete summary in a single jq command
           report_json=$(cat kubescape_report.json)
-
-          # Extract summary information using jq with null checks
-          summary=$(echo "$report_json" | jq -r '
-            if (.Summary.TotalResources != null and .Summary.FailedResources != null) then
-              {
-                "total_controls": .Summary.TotalResources,
-                "failed_controls": .Summary.FailedResources,
-                "passed_controls": (.Summary.TotalResources - .Summary.FailedResources),
-                "compliance_percentage": (100 - (.Summary.FailedResources / .Summary.TotalResources * 100))
-              }
-            else
-              {
-                "total_controls": 0,
-                "failed_controls": 0,
-                "passed_controls": 0,
-                "compliance_percentage": 0
-              }
-            end
-          ')
-
-          # Output the summary to GitHub Actions summary
-          echo "## Kubescape Scan Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Total Controls | Failed Controls | Passed Controls | Compliance |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|---|---| " >> $GITHUB_STEP_SUMMARY
-          echo "| $(echo "$summary" | jq -r .total_controls) | $(echo "$summary" | jq -r .failed_controls) | $(echo "$summary" | jq -r .passed_controls) | $(echo "$summary" | jq -r .compliance_percentage | printf '%.2f%%') |" >> $GITHUB_STEP_SUMMARY
           
-
-          # Extract and output detailed results for each failed control
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Failed Controls" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Filter and get failed results as a JSON array
-          failed_results_json=$(echo "$report_json" | jq '.Results | if . == null then [] else .[] | select(.Status == "failed") end')
-
-          # Use jq to iterate and format the output
-          if [[ $(echo "$failed_results_json" | jq length) -gt 0 ]]; then
-            echo "| Severity | Control Name | Docs | Assisted Remediation |" >> $GITHUB_STEP_SUMMARY
-            echo "|---|---|---|---| " >> $GITHUB_STEP_SUMMARY
-            echo "$failed_results_json" | jq -r '.[] | "\(.Severity) | \(.Name) | [Link](https://hub.armosec.io/docs/\(.ControlID)) | \(.Remediation) |"' >> $GITHUB_STEP_SUMMARY
-          else
-            echo "No failed controls found." >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "$report_json" | jq -r \
+            '
+              # Helper function to handle null values
+              def null_to_zero: if . == null then 0 else . end;
+              
+              # Extract summary information
+              . as $report |
+              
+              "## Kubescape Scan Summary\n\n" +
+              "| Total Controls | Failed Controls | Passed Controls | Compliance |\n" +
+              "|---|---|---|---|\n" +
+              "| \(($report.Summary.TotalResources | null_to_zero)) | \($report.Summary.FailedResources | null_to_zero) | \($report.Summary.TotalResources | null_to_zero - $report.Summary.FailedResources | null_to_zero) | \((100 - ($report.Summary.FailedResources | null_to_zero) / ($report.Summary.TotalResources | null_to_zero) * 100) | to_number | printf "%.2f%%") |\n\n" +
+              
+              "### Failed Controls\n\n" +
+              (if ($report.Results | length) > 0 then
+                "| Severity | Control Name | Docs | Assisted Remediation |\n" +
+                "|---|---|---|---|\n" +
+                ($report.Results | map(select(.Status == "failed")) | 
+                 map("|\(.Severity) | \(.Name) | [Link](https://hub.armosec.io/docs/\(.ControlID)) | \(.Remediation) |") | 
+                 join("\n"))
+              else
+                "No failed controls found."
+              end)
+            ' >> $GITHUB_STEP_SUMMARY
