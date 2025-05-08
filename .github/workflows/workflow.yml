@@ -11,7 +11,7 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_CHANNEL_ID: 'C08RG8A30M9'
-          SLACK_MESSAGE: 'Hello from GitHub Actions!'
+          SLACK_MESSAGE: 'Hello from GitHub Actions asdfasdfasdfasdfasdf!'
         run: |
           curl -X POST -H 'Content-type: application/json' \
           --data "{
