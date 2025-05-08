@@ -13,8 +13,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Test Simple Action
+        uses: actions/hello-world-javascript-action@v1.0.2
+        with:
+          who-to-greet: 'World'
       - name: Set up Minikube
-        uses: crazy-max/ghaction-minikube@v3
+        uses: crazy-max/ghaction-minikube@v2.6.0 
         with:
           minikube version: 'latest'
           kubernetes version: 'latest'
