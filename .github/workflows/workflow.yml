@@ -16,7 +16,7 @@ jobs:
         uses: slackapi/slack-github-action@v1.24.0
         with:
           slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_TOKEN }}
-          slack-channel: 'C08RG8A30M9 # Replace with your Slack channel name or ID
+          slack-channel: 'C08RG8A30M9'
           slack-text: |
             :tada: A new commit has been pushed to the `main` branch!
             Commit message: ${{ github.event.head_commit.message }}
