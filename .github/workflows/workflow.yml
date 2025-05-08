@@ -13,11 +13,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Send Slack notification
-        uses: slackapi/slack-github-action@v1.24.0
+        uses: slackapi/slack-github-action@v1.24.0 # Or the version you are using
         with:
-          slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_TOKEN }}
-          slack-channel: 'C08RG8A30M9'
-          slack-text: |
+          botToken: ${{ secrets.SLACK_BOT_TOKEN }}
+          channel-id: 'C08RG8A30M9' # Your Slack channel ID
+          slack-message: |
             :tada: A new commit has been pushed to the `main` branch!
             Commit message: ${{ github.event.head_commit.message }}
             Commit author: ${{ github.event.head_commit.author.name }}
