@@ -52,7 +52,7 @@ jobs:
         id: format-markdown
         run: |
           if [ -f results.json ]; then
-            report=$(cat results.json | jq -r '.summaryDetails.controls | to_entries[] | "* **Rule:** \(.value.name)\n* **Status:** \(.value.status)\n* **Category:** \(.value.category.name)\n* **Score:** \(.value.score)"')
+            report=$(cat results.json | jq -r '.summaryDetails.controls | to_entries[] | "* **Rule:** \(.value.name)\n* **Status:** \(.value.status)\n* **Category:** \(.value.category.name)\n* **Score:** \(.value.score)\n\n"' )
             echo "::set-output name=markdown_report::$report"
           else
             echo "::set-output name=markdown_report::No Kubescape results found."
