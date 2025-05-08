@@ -40,5 +40,6 @@ jobs:
 
       - name: Run Kubescape Scan and Add to Summary
         run: |
-          echo "## kubescape scan framework nsa -v --format pretty-printer >> $GITHUB_STEP_SUMMARY
-          kubescape scan framework nsa -v --format pretty-printer | sed -e 's/\x1B\[[0-9;]*[mG]//g' | sed 's/^┌/|/g; s/┐$/|/g; s/├/|/g; s/┤$/|/g; s/│/|/g; s/└/|/g; s/┘$/|/g' >> $GITHUB_STEP_SUMMARY
+          echo "## Kubescape Scan Summary" >> $GITHUB_STEP_SUMMARY
+          #kubescape scan framework nsa -v --format pretty-printer | sed -e 's/\x1B\[[0-9;]*[mG]//g' | sed 's/^┌/|/g; s/┐$/|/g; s/├/|/g; s/┤$/|/g; s/│/|/g; s/└/|/g; s/┘$/|/g' >> $GITHUB_STEP_SUMMARY
+          kubescape scan framework nsa -v --format pretty-printer >> $GITHUB_STEP_SUMMARY
