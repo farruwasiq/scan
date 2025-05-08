@@ -44,6 +44,8 @@ jobs:
             echo "::set-output name=slack_report::No Kubescape results found."
           fi
 
+      - name: Debug Kubescape Output
+        run: cat results.json
       - name: Send Kubescape Report to Slack
         if: always()
         env:
