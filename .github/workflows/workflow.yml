@@ -117,8 +117,8 @@ jobs:
                   ('BACKGROUND', (0,0), (0,-1), HexColor("#EEEEEE")),
                   ('TEXTCOLOR', (0,0), (0,-1), HexColor("#444444")),
                   ('ALIGN', (0,0), (0,-1), 'LEFT'),
-                  ('FONTNAME', (0,0), (0,-1), 'Helvetica-Bold'),
-                  ('FONTSIZE', (0,0), (0,-1), 10),
+                  ('FONTNAME', (0,0), (-1,-1), 'Helvetica-Bold'),
+                  ('FONTSIZE', (0,0), (-1,-1), 10),
                   ('BOTTOMPADDING', (0,0), (-1,-1), 6),
               ])
               metadata_table_obj = Table(metadata_table, style=metadata_table_style)
