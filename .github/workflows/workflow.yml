@@ -49,8 +49,6 @@ jobs:
             cat kubescape_report.json # Output the contents for debugging
             echo "::set-output name=json_valid::true"
           fi
-        outputs:
-          json_valid: ${{ ! ( ! -s 'kubescape_report.json' ) }} # This is now correct
 
       - name: Convert JSON to PDF Report
         if: needs.kubescape_scan_slack.outputs.json_valid == 'true'
