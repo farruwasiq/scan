@@ -105,6 +105,7 @@ jobs:
           scanners: 'misconfig'
           format: 'json'
           output: 'trivy_report.json'
+          k8sConfig: ~/.kube/config # Add this line
 
       - name: Summarize Trivy Scan Results
         if: success()
