@@ -9,6 +9,11 @@ on:
 jobs:
   kubescape_scan:
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write # Required for SARIF output if you choose that format
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -18,44 +23,22 @@ jobs:
         with:
           kubernetes-version: 'latest'
 
-      - name: Install Kubescape
-        run: |
-          curl -s https://raw.githubusercontent.com/armosec/kubescape/master/install.sh | sudo bash
-          kubescape version
+      - name: Install Kubescape (Implicitly done by the action)
 
-      - name: Run Kubescape on Minikube
-        id: kubescape-scan-cluster
-        run: kubescape scan framework nsa -v --format json --output results.json
-
-      # - name: Format Kubescape Results for Slack
-      #   id: format-results
-      #   run: |
-      #     if [ -f results.json ]; then
-      #       report=$(cat results.json | jq -c '.summaryDetails.controls | to_entries[] | "*Rule:* \(.value.name), *Status:* \(.value.status), *Category:* \(.value.category.name), *Score:* \(.value.score)"' | paste -sd "\n")
-      #       echo "::set-output name=slack_report::$report"
-      #     else
-      #       echo "::set-output name=slack_report::No Kubescape results found."
-      #     fi
-
-      # - name: Send Kubescape Report to Slack
-      #   if: always()
-      #   env:
-      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      #     SLACK_CHANNEL_ID: 'C08RG8A30M9'
-      #   run: |
-      #     payload='{"channel":"$SLACK_CHANNEL_ID","text":"Test"}'
-      #     curl -X POST -H 'Content-type: application/json' \
-      #     --data "$payload" \
-      #     "$SLACK_WEBHOOK_URL"
-
-      - name: Run Kubescape on Minikube and Generate Summary
-        id: kubescape-summary
-        run: |
-          kubescape scan framework nsa -v --format text > kubescape_report.txt
-          report=$(cat kubescape_report.txt)
-          echo "::set-output name=report::$report"
+      - name: Run Kubescape Scan
+        uses: kubescape/github-action@main
+        with:
+          format: text # Or try 'sarif' for GitHub Code Scanning
+          outputFile: kubescape-report # Optional, but can be useful for debugging
 
       - name: Add Kubescape Report to Summary
+        if: always() # Ensure this runs even if the scan fails (adjust as needed)
         run: |
-          echo "## Kubescape Scan Summary" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.kubescape-summary.outputs.report }}" >> $GITHUB_STEP_SUMMARY
+          if [ -f kubescape-report ]; then
+            report=$(cat kubescape-report)
+            echo "## Kubescape Scan Summary" >> $GITHUB_STEP_SUMMARY
+            echo "$report" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## Kubescape Scan Summary" >> $GITHUB_STEP_SUMMARY
+            echo "No Kubescape report found." >> $GITHUB_STEP_SUMMARY
+          fi
