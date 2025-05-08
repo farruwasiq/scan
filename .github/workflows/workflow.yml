@@ -1,4 +1,4 @@
-name: Kubescape Scan and Slack Report
+name: Kubescape Scan and GitHub Summary
 
 on:
   push:
@@ -7,14 +7,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  kubescape_scan_slack:
+  kubescape_scan_summary:
     runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: read
       security-events: write
-    outputs: # outputs is at the job level
-      json_valid: ${{ steps.run_kubescape_scan.outputs.json_valid }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -41,174 +39,57 @@ jobs:
           # Check the output of the Kubescape scan
           if [ ! -s "kubescape_report.json" ]; then
             echo "Error: kubescape_report.json is empty or does not exist.  The Kubescape scan may have failed."
-            echo "::set-output name=json_valid::false"
             exit 1
           else
-            echo "Kubescape scan completed successfully.  Output written to kubescape_report.json"
-            cat kubescape_report.json # Output the contents for debugging
+            echo "Kubescape scan completed successfully. Output written to kubescape_report.json"
+            cat kubescape_report.json
           fi
 
-      - name: Debug Output - json_valid
-        run: echo "Value of json_valid: ${{ steps.run_kubescape_scan.outputs.json_valid }}" # Added debug
-
-      - name: Convert JSON to PDF Report
-        if: steps.run_kubescape_scan.outputs.json_valid == 'true'
+      - name: Summarize Kubescape Scan Results
+        if: success() # changed from if: steps.run_kubescape_scan.outputs.json_valid == 'true'
         run: |
-          # Install jq (if not already installed)
+          # Install jq
           sudo apt-get update
           sudo apt-get install -y jq
 
-          # Check if kubescape_report.json is empty *before* using jq
-          if [ ! -s "kubescape_report.json" ]; then
-            echo "Error: kubescape_report.json is empty. Skipping PDF conversion."
-            exit 0 # Exit gracefully, don't fail the workflow
-          fi
+          # Read the JSON report
+          report_json=$(cat kubescape_report.json)
 
-          # Convert JSON to a more structured format for PDF generation
-          report_data=$(cat kubescape_report.json | jq '{
-            "metadata": {
-              "scanDate": now | strftime("%Y-%m-%d %H:%M:%S"),
-              "framework": "NSA"
-            },
-            "results": .Results | map({
-              "controlName": .Name,
-              "controlId": .ControlID,
-              "status": .Status,
-              "message": .Message,
-              "remediation": .Remediation,
-              "severity": .Severity
-            })
+          # Extract summary information using jq
+          summary=$(echo "$report_json" | jq -r '{
+            "total_controls": .Summary.TotalResources,
+            "failed_controls": .Summary.FailedResources,
+            "passed_controls": (.Summary.TotalResources - .Summary.FailedResources),
+            "compliance_percentage": (100 - (.Summary.FailedResources / .Summary.TotalResources * 100))
           }')
 
-          # Create a temporary file to hold the structured data
-          echo "$report_data" > structured_report.json
+          # Output the summary to GitHub Actions summary
+          echo "## Kubescape Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Total Controls: $(echo "$summary" | jq -r .total_controls)" >> $GITHUB_STEP_SUMMARY
+          echo "Failed Controls: $(echo "$summary" | jq -r .failed_controls)" >> $GITHUB_STEP_SUMMARY
+          echo "Passed Controls: $(echo "$summary" | jq -r .passed_controls)" >> $GITHUB_STEP_SUMMARY
+          echo "Compliance: $(echo "$summary" | jq -r .compliance_percentage | printf '%.2f%%')" >> $GITHUB_STEP_SUMMARY
 
-          # Install reportlab for PDF generation
-          pip install reportlab
+          # Extract and output detailed results for each failed control
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Detailed Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Python script to generate PDF (save as generate_pdf.py)
-          python <<EOF > generate_pdf.py
-          import json
-          import sys
-          import os  # Import the os module
+          # Filter and iterate through failed results using jq
+          failed_results=$(echo "$report_json" | jq '.Results[] | select(.Status == "failed")')
+          echo "$failed_results" | jq -c '.[]' | while read -r failed_result; do
+            control_id=$(echo "$failed_result" | jq -r .ControlID)
+            control_name=$(echo "$failed_result" | jq -r .Name)
+            message=$(echo "$failed_result" | jq -r .Message)
+            remediation=$(echo "$failed_result" | jq -r .Remediation)
+            severity=$(echo "$failed_result" | jq -r .Severity)
 
-          from reportlab.lib.pagesizes import letter
-          from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-          from reportlab.lib.styles import getSampleStyleSheet
-          from reportlab.lib.units import inch
-          from reportlab.lib.colors import HexColor
-
-          def generate_pdf(json_file, output_pdf):
-              styles = getSampleStyleSheet()
-              doc = SimpleDocTemplate(output_pdf, pagesize=letter)
-              elements = []
-              
-              if not os.path.exists(json_file):
-                  print(f"Error: File not found: {json_file}")
-                  sys.exit(1)
-
-              try:
-                  # Load the JSON data
-                  with open(json_file, 'r') as f:
-                      data = json.load(f)
-              except json.JSONDecodeError as e:
-                  print(f"Error: Invalid JSON format in {json_file}: {e}")
-                  sys.exit(1)
-
-              # Check if the "results" key exists and is not null
-              if "results" not in data or data["results"] is None:
-                  print("Error: \'results\' key is missing or null in JSON data.  Cannot generate PDF.")
-                  sys.exit(1)
-
-              # Check if the "metadata" key exists
-              if "metadata" not in data:
-                  print("Error: \'metadata\' key is missing in JSON data.  Using default values.")
-                  data["metadata"] = {"scanDate": "Unknown", "framework": "Unknown"}
-              
-              # Check for missing keys in results
-              for result in data["results"]:
-                for key in ["controlId", "controlName", "status", "severity", "message", "remediation"]:
-                    if key not in result:
-                        print(f"Warning: Key '{key}' is missing in a result.  Using default value.")
-                        result[key] = "N/A"
-
-              # Metadata
-              metadata_title = Paragraph("<b>Kubescape Scan Report</b>", styles['h1'])
-              elements.append(metadata_title)
-              elements.append(Spacer(1, 0.2*inch))
-
-              metadata_table = [
-                  ["Scan Date", data["metadata"]["scanDate"]],
-                  ["Framework", data["metadata"]["framework"]]
-              ]
-              metadata_table_style = TableStyle([
-                  ('BACKGROUND', (0,0), (0,-1), HexColor("#EEEEEE")),
-                  ('TEXTCOLOR', (0,0), (0,-1), HexColor("#444444")),
-                  ('ALIGN', (0,0), (0,-1), 'LEFT'),
-                  ('FONTNAME', (0,0), (-1,-1), 'Helvetica-Bold'),
-                  ('FONTSIZE', (0,0), (-1,-1), 10),
-                  ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-              ])
-              metadata_table_obj = Table(metadata_table, style=metadata_table_style)
-              elements.append(metadata_table_obj)
-              elements.append(Spacer(1, 0.2*inch))
-
-              # Results Table
-              results_title = Paragraph("<b>Scan Results</b>", styles['h2'])
-              elements.append(results_title)
-              elements.append(Spacer(1, 0.2*inch))
-
-              table_data = [["Control ID", "Control Name", "Status", "Severity", "Message", "Remediation"]]
-              for result in data["results"]:
-                  table_data.append([
-                      result["controlId"],
-                      result["controlName"],
-                      result["status"],
-                      result["severity"],
-                      Paragraph(result["message"], styles['Normal']),  # Use Paragraph for wrapping
-                      Paragraph(result["remediation"], styles['Normal']) # Use Paragraph for wrapping
-                  ])
-
-              table_style = TableStyle([
-                  ('BACKGROUND', (0,0), (-1,0), HexColor("#4682B4")), # SteelBlue
-                  ('TEXTCOLOR', (0,0), (-1,0), 'CENTER'),
-                  ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                  ('FONTSIZE', (0,0), (-1,-1), 10),
-                  ('GRID', (0,0), (-1,-1), 1, HexColor("#D3D3D3")), # LightGray
-                  ('VALIGN', (0,0), (-1,-1), 'TOP'),  # Align content to the top
-                  ('WORDWRAP', (4,0), (5,-1), True), # Enable word wrap for message and remediation
-                  ('FONTSIZE', (0,1), (-1,-1), 9),
-              ])
-              table_obj = Table(table_data, colWidths=[0.8*inch, 1.5*inch, 0.8*inch, 0.8*inch, 2.5*inch, 2.5*inch], style=table_style) #Set the column widths
-              elements.append(table_obj)
-
-              doc.build(elements)
-
-          if __name__ == "__main__":
-              # Check if structured_report.json exists before generating PDF.
-              if os.path.exists("structured_report.json"):
-                  generate_pdf("structured_report.json", "kubescape_report.pdf")
-              else:
-                print("Error: structured_report.json not found.  Cannot generate PDF.")
-                sys.exit(1)
-          EOF
-
-      - name: Upload PDF Report to Slack
-        if: steps.run_kubescape_scan.outputs.json_valid == 'true'
-        uses: slackapi/slack-github-action@v2
-        with:
-          token: ${{ secrets.SLACK_BOT_TOKEN }}
-          method: files.uploadV2
-          payload: |
-            {
-              "channel": "#your-slack-channel",
-              "files": [
-                {
-                  "name": "kubescape_report.pdf",
-                  "content": ""
-                }
-              ],
-              "initial_comment": "Kubescape scan report (NSA framework) attached."
-            }
-        env:
-          SLACK_FILE_0: "${{ github.workspace }}/kubescape_report.pdf"
+            echo "<details><summary><strong>$control_name ($control_id) - Severity: $severity</strong></summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "  **Message:** $message  " >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "  **Remediation:** $remediation  " >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          done
