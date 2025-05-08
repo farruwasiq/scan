@@ -14,7 +14,7 @@ jobs:
       contents: read
       security-events: write
     outputs:
-      json_valid: ${{ steps.kubescape_scan.outputs.json_valid }} # Define at job level
+      json_valid: ${{ steps.run_kubescape_scan.outputs.json_valid }} # Corrected output reference
 
     steps:
       - name: Checkout code
@@ -36,7 +36,7 @@ jobs:
           kubescape version
 
       - name: Run Kubescape Scan and Generate JSON Report
-        id: kubescape-scan
+        id: run_kubescape_scan # Changed id to be unique
         run: |
           kubescape scan framework nsa -v --format json --output kubescape_report.json
           # Check the output of the Kubescape scan
@@ -50,7 +50,7 @@ jobs:
             echo "::set-output name=json_valid::true"
           fi
         outputs:
-          json_valid: ${{ ! ( ! -s 'kubescape_report.json' ) }} # Set output
+          json_valid: ${{ ! ( ! -s 'kubescape_report.json' ) }} # This is now correct
 
       - name: Convert JSON to PDF Report
         if: needs.kubescape_scan_slack.outputs.json_valid == 'true'
