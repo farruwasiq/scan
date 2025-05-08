@@ -36,10 +36,16 @@ jobs:
       - name: Run Kubescape Scan
         id: kubescape-scan
         run: |
-          report=$(kubescape scan --format text)
+          kubescape scan --format text > kubescape_report.txt
+          report=$(cat kubescape_report.txt)
           echo "report=$report" >> "$GITHUB_OUTPUT"
 
       - name: Add Kubescape Report to Summary
         run: |
           echo "## Kubescape Scan Summary" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.kubescape-scan.outputs.report }}" >> $GITHUB_STEP_SUMMARY
+          if [ -f kubescape_report.txt ]; then
+            report_content=$(cat kubescape_report.txt)
+            echo "$report_content" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No Kubescape report file found." >> $GITHUB_STEP_SUMMARY
+          fi
