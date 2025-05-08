@@ -113,11 +113,9 @@ jobs:
       - name: Run Trivy k8s scan
         uses: aquasecurity/trivy-action@master
         with:
-          scanType: 'k8s'
-          #scanners: 'misconfig'
-          format: 'json'
-          output: 'trivy_report.json'
-          # No k8sConfig
+              report: 'summary'
+              severity: 'CRITICAL'
+              include-namespaces: 'kube-system'
 
       - name: Summarize Trivy Scan Results
         if: success()
