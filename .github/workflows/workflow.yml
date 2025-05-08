@@ -91,16 +91,25 @@ jobs:
         if: always()
         run: |
           if [ -f kubescape_report.json ]; then
-            report=$(cat kubescape_report.json | jq -r '.summaryDetails.controls | to_entries[] |
+            report=$(cat kubescape_report.json | jq -r '.results[] |
               "################################################################################\\n" +
-              "Control Name: \(.value.name)\\n" +
-              "Status: \(.value.status)\\n" +
-              "Category: \(.value.category.name)\\n" +
-              "Score: \(.value.score)\\n\\n"')
-            echo "## Kubescape Scan Results (NSA Framework)" >> $GITHUB_STEP_SUMMARY
+              "ApiVersion: \(.apiVersion)\\n" +
+              "Kind: \(.kind)\\n" +
+              "Name: \(.name)\\n" +
+              "Namespace: \(.namespace)\\n\\n" +
+              "Failed Controls:\\n" +
+              (if .failedControls > 0 then
+                (.failedControlsDetails[] | "  Severity: \(.severity)\\n" +
+                                           "  Control Name: \(.controlName)\\n" +
+                                           "  Docs: \(.docsUrl)\\n" +
+                                           "  Assisted Remediation: \(.remediation)\\n\\n")
+              else
+                "  No failed controls for this resource\\n\\n"
+              end)')
+            echo "## Kubescape Scan Results (Grouped by Resource)" >> $GITHUB_STEP_SUMMARY
             echo "$report" >> $GITHUB_STEP_SUMMARY
           else
-            echo "## Kubescape Scan Results (NSA Framework)" >> $GITHUB_STEP_SUMMARY
+            echo "## Kubescape Scan Results (Grouped by Resource)" >> $GITHUB_STEP_SUMMARY
             echo "No Kubescape report file found." >> $GITHUB_STEP_SUMMARY
           fi
 
