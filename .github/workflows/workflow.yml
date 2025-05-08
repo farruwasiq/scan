@@ -1,3 +1,53 @@
+# name: Kubescape Scan
+
+# on:
+#   push:
+#     branches:
+#       - main
+#   workflow_dispatch:
+
+# jobs:
+#   kubescape_scan:
+#     runs-on: ubuntu-latest
+#     permissions:
+#       actions: read
+#       contents: read
+#       security-events: write
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Set up Minikube
+#         uses: medyagh/setup-minikube@latest
+#         with:
+#           kubernetes-version: 'latest'
+
+#       - name: Wait for Minikube to be Ready
+#         run: kubectl wait --for=condition=ready node/minikube --timeout=60s
+
+#       - name: Install Kubescape (if not already present)
+#         run: |
+#           if ! command -v kubescape &> /dev/null; then
+#             curl -s https://raw.githubusercontent.com/armosec/kubescape/master/install.sh | sudo bash
+#           fi
+#           kubescape version
+
+#       # - name: Run Kubescape Scan and Add to Summary
+#       #   run: |
+#       #     echo "## Kubescape Scan Summary" >> $GITHUB_STEP_SUMMARY
+#       #     kubescape scan --format pretty-printer | sed -e 's/\x1B\[[0-9;]*[mG]//g' >> $GITHUB_STEP_SUMMARY
+
+#       - name: Run Kubescape Scan and Add to Summary
+#         run: |
+#           echo "## Kubescape Scan Summary" >> $GITHUB_STEP_SUMMARY
+#           #kubescape scan framework nsa -v --format pretty-printer | sed -e 's/\x1B\[[0-9;]*[mG]//g' | sed 's/^┌/|/g; s/┐$/|/g; s/├/|/g; s/┤$/|/g; s/│/|/g; s/└/|/g; s/┘$/|/g' >> $GITHUB_STEP_SUMMARY
+#           kubescape scan framework nsa -v --format pretty-printer >> $GITHUB_STEP_SUMMARY
+
+
+
+
+
 name: Kubescape Scan
 
 on:
@@ -33,13 +83,20 @@ jobs:
           fi
           kubescape version
 
-      # - name: Run Kubescape Scan and Add to Summary
-      #   run: |
-      #     echo "## Kubescape Scan Summary" >> $GITHUB_STEP_SUMMARY
-      #     kubescape scan --format pretty-printer | sed -e 's/\x1B\[[0-9;]*[mG]//g' >> $GITHUB_STEP_SUMMARY
+      - name: Run Kubescape Scan (JSON Output)
+        id: kubescape-scan
+        run: kubescape scan --format json --output kubescape_report.json
 
-      - name: Run Kubescape Scan and Add to Summary
+      - name: Format Kubescape Results as Markdown Table
+        if: always()
         run: |
-          echo "## Kubescape Scan Summary" >> $GITHUB_STEP_SUMMARY
-          #kubescape scan framework nsa -v --format pretty-printer | sed -e 's/\x1B\[[0-9;]*[mG]//g' | sed 's/^┌/|/g; s/┐$/|/g; s/├/|/g; s/┤$/|/g; s/│/|/g; s/└/|/g; s/┘$/|/g' >> $GITHUB_STEP_SUMMARY
-          kubescape scan framework nsa -v --format pretty-printer >> $GITHUB_STEP_SUMMARY
+          if [ -f kubescape_report.json ]; then
+            report=$(cat kubescape_report.json | jq -r '.results[] | "|\(.ruleName)|\(.status)|\(.severity)|\(.description)|"')
+            echo "## Kubescape Scan Results" >> $GITHUB_STEP_SUMMARY
+            echo "| Rule | Status | Severity | Description |" >> $GITHUB_STEP_SUMMARY
+            echo "|---|---|---|---| " >> $GITHUB_STEP_SUMMARY
+            echo "$report" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## Kubescape Scan Results" >> $GITHUB_STEP_SUMMARY
+            echo "No Kubescape report file found." >> $GITHUB_STEP_SUMMARY
+          fi
