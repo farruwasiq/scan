@@ -97,7 +97,7 @@ jobs:
         run: python .github/workflows/generate_pdf_report.py kubescape_report.json kubescape_report.pdf
 
       - name: Slack Notification
-        uses: slackapi/slack-github-action@v6
+        uses: slackapi/slack-github-action/slack@v6
         with:
           slack-webhook-uri: ${{ secrets.SLACK_WEBHOOK_URI }}
           files: kubescape_report.pdf
