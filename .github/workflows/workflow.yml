@@ -37,13 +37,19 @@ jobs:
         id: kubescape-scan
         run: |
           kubescape scan framework nsa -v --format json --output kubescape_report.json
-          # Check if kubescape_report.json exists and is not empty
+          # Check the output of the Kubescape scan
           if [ ! -s "kubescape_report.json" ]; then
-            echo "Error: kubescape_report.json is empty or does not exist.  Will not generate PDF."
+            echo "Error: kubescape_report.json is empty or does not exist.  The Kubescape scan may have failed."
             exit 1
+          else
+            echo "Kubescape scan completed successfully.  Output written to kubescape_report.json"
+            cat kubescape_report.json # Output the contents for debugging
           fi
+        outputs:
+          json_valid: ${{ ! ( ! -s 'kubescape_report.json' ) }} # Set output
 
       - name: Convert JSON to PDF Report
+        if: steps.kubescape-scan.outputs.json_valid == 'true'
         run: |
           # Install jq (if not already installed)
           sudo apt-get update
@@ -93,6 +99,10 @@ jobs:
               styles = getSampleStyleSheet()
               doc = SimpleDocTemplate(output_pdf, pagesize=letter)
               elements = []
+              
+              if not os.path.exists(json_file):
+                  print(f"Error: File not found: {json_file}")
+                  sys.exit(1)
 
               try:
                   # Load the JSON data
@@ -101,14 +111,23 @@ jobs:
               except json.JSONDecodeError as e:
                   print(f"Error: Invalid JSON format in {json_file}: {e}")
                   sys.exit(1)
-              except FileNotFoundError:
-                  print(f"Error: File not found: {json_file}")
-                  sys.exit(1)
 
               # Check if the "results" key exists and is not null
               if "results" not in data or data["results"] is None:
                   print("Error: \'results\' key is missing or null in JSON data.  Cannot generate PDF.")
                   sys.exit(1)
+
+              # Check if the "metadata" key exists
+              if "metadata" not in data:
+                  print("Error: \'metadata\' key is missing in JSON data.  Using default values.")
+                  data["metadata"] = {"scanDate": "Unknown", "framework": "Unknown"}
+              
+              # Check for missing keys in results
+              for result in data["results"]:
+                for key in ["controlId", "controlName", "status", "severity", "message", "remediation"]:
+                    if key not in result:
+                        print(f"Warning: Key '{key}' is missing in a result.  Using default value.")
+                        result[key] = "N/A"
 
               # Metadata
               metadata_title = Paragraph("<b>Kubescape Scan Report</b>", styles['h1'])
@@ -173,8 +192,8 @@ jobs:
           EOF
 
       - name: Upload PDF Report to Slack
+        if: steps.kubescape-scan.outputs.json_valid == 'true'
         uses: slackapi/slack-github-action@v2
-        if: always()
         with:
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           method: files.uploadV2
