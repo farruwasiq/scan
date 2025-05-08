@@ -46,10 +46,7 @@ jobs:
           else
             echo "Kubescape scan completed successfully.  Output written to kubescape_report.json"
             cat kubescape_report.json # Output the contents for debugging
-            echo "::set-output name=json_valid::true"
           fi
-        outputs:
-          json_valid: ${{ ! ( ! -s 'kubescape_report.json' ) }} # output defined for the step
 
       - name: Convert JSON to PDF Report
         if: needs.kubescape_scan_slack.outputs.json_valid == 'true'
@@ -194,7 +191,7 @@ jobs:
           EOF
 
       - name: Upload PDF Report to Slack
-        if: steps.run_kubescape_scan.outputs.json_valid == 'true'
+        if: needs.kubescape_scan_slack.outputs.json_valid == 'true'
         uses: slackapi/slack-github-action@v2
         with:
           token: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -212,4 +209,3 @@ jobs:
             }
         env:
           SLACK_FILE_0: "${{ github.workspace }}/kubescape_report.pdf"
-
