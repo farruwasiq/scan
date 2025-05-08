@@ -78,7 +78,7 @@ jobs:
           echo "## Kubescape Scan Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Total Controls: $(echo "$summary" | jq -r .total_controls)" >> $GITHUB_STEP_SUMMARY
-          echo "Failed Controls: $(echo "$summary" | jq -r .total_controls)" >> $GITHUB_STEP_SUMMARY
+          echo "Failed Controls: $(echo "$summary" | jq -r .failed_controls)" >> $GITHUB_STEP_SUMMARY
           echo "Passed Controls: $(echo "$summary" | jq -r .passed_controls)" >> $GITHUB_STEP_SUMMARY
           echo "Compliance: $(echo "$summary" | jq -r .compliance_percentage | printf '%.2f%%')" >> $GITHUB_STEP_SUMMARY
 
@@ -87,26 +87,12 @@ jobs:
           echo "### Detailed Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Filter and iterate through failed results using jq, handle null
-          failed_results=$(echo "$report_json" | jq '.Results | if . == null then [] else .[] | select(.Status == "failed") end')
+          # Filter and get failed results as a JSON array
+          failed_results_json=$(echo "$report_json" | jq '.Results | if . == null then [] else .[] | select(.Status == "failed") end')
 
-          # Check if there are any failed results before iterating
-          if [[ $(echo "$failed_results" | jq length) -gt 0 ]]; then
-            echo "$failed_results" | jq -c '.[]' | while read -r failed_result; do
-              control_id=$(echo "$failed_result" | jq -r .ControlID)
-              control_name=$(echo "$failed_result" | jq -r .Name)
-              message=$(echo "$failed_result" | jq -r .Message)
-              remediation=$(echo "$failed_result" | jq -r .Remediation)
-              severity=$(echo "$failed_result" | jq -r .Severity)
-
-              echo "<details><summary><strong>$control_name ($control_id) - Severity: $severity</strong></summary>" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "  **Message:** $message  " >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "  **Remediation:** $remediation  " >> $GITHUB_STEP_SUMMARY
-              echo "</details>" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-            done
+          # Use jq to iterate and format the output
+          if [[ $(echo "$failed_results_json" | jq length) -gt 0 ]]; then
+            echo "$failed_results_json" | jq -r '.[] | "<details><summary><strong>\(.Name) (\(.ControlID)) - Severity: \(.Severity)</strong></summary>\n\n  **Message:** \(.Message)  \n\n  **Remediation:** \(.Remediation)  \n</details>\n"' >> $GITHUB_STEP_SUMMARY
           else
             echo "No failed controls found." >> $GITHUB_STEP_SUMMARY
           fi
