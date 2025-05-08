@@ -13,7 +13,8 @@ jobs:
       actions: read
       contents: read
       security-events: write
-
+    outputs:
+      json_valid: ${{ steps.run_kubescape_scan.outputs.json_valid }} # Define output at the job level
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -48,7 +49,7 @@ jobs:
             echo "::set-output name=json_valid::true"
           fi
         outputs:
-          json_valid: ${{ steps.run_kubescape_scan.outputs.json_valid }}
+          json_valid: ${{ ! ( ! -s 'kubescape_report.json' ) }} # Correct location for step output
 
       - name: Convert JSON to PDF Report
         if: steps.run_kubescape_scan.outputs.json_valid == 'true' # Corrected condition
@@ -172,7 +173,7 @@ jobs:
                   ('BACKGROUND', (0,0), (-1,0), HexColor("#4682B4")), # SteelBlue
                   ('TEXTCOLOR', (0,0), (-1,0), 'CENTER'),
                   ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                  ('FONTSIZE', (0,0), (-1,0), 10),
+                  ('FONTSIZE', (0,0), (-1,-1), 10),
                   ('GRID', (0,0), (-1,-1), 1, HexColor("#D3D3D3")), # LightGray
                   ('VALIGN', (0,0), (-1,-1), 'TOP'),  # Align content to the top
                   ('WORDWRAP', (4,0), (5,-1), True), # Enable word wrap for message and remediation
