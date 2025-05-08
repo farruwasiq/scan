@@ -98,35 +98,13 @@ jobs:
       - name: Wait for Minikube to be Ready (Trivy)
         run: kubectl wait --for=condition=ready node/minikube --timeout=60s
 
-      - name: Install Trivy
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y apt-transport-https curl
-
-          # Download and install the key
-          curl -sSL https://aquasecurity.github.io/trivy-repo/public.key | \
-          sudo gpg --dearmor -o /usr/share/keyrings/aquasecurity-archive-keyring.gpg
-
-          # Add the repository
-          echo "deb [signed-by=/usr/share/keyrings/aquasecurity-archive-keyring.gpg] \
-          https://aquasecurity.github.io/trivy-repo/deb stable main" | \
-          sudo tee /etc/apt/sources.list.d/trivy.list
-
-          sudo apt-get update
-          sudo apt-get install -y trivy
-
-          trivy version
-
       - name: Run Trivy k8s scan
-        id: trivy_k8s_scan
-        run: |
-          trivy k8s --disable-node-collector --report all --scanners misconfig --output trivy_report.json
-          if [ ! -s "trivy_report.json" ]; then
-            echo "Error: trivy_report.json is empty or does not exist. Trivy scan may have failed."
-            exit 1
-          else
-            echo "Trivy scan completed successfully. Output written to trivy_report.json"
-          fi
+        uses: aquasecurity/trivy-action@master
+        with:
+          scanType: 'k8s'
+          flags: '--disable-node-collector --report all --scanners misconfig'
+          outputFormat: 'json'
+          output: 'trivy_report.json'
 
       - name: Summarize Trivy Scan Results
         if: success()
