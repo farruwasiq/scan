@@ -27,23 +27,42 @@ jobs:
         id: kubescape-scan-cluster
         run: kubescape scan --format json --output results.json
 
-      - name: Format Kubescape Results for Slack
-        id: format-results
+      # - name: Format Kubescape Results for Slack
+      #   id: format-results
+      #   run: |
+      #     if [ -f results.json ]; then
+      #       report=$(cat results.json | jq -c '.summaryDetails.controls | to_entries[] | "*Rule:* \(.value.name), *Status:* \(.value.status), *Category:* \(.value.category.name), *Score:* \(.value.score)"' | paste -sd "\n")
+      #       echo "::set-output name=slack_report::$report"
+      #     else
+      #       echo "::set-output name=slack_report::No Kubescape results found."
+      #     fi
+
+      # - name: Send Kubescape Report to Slack
+      #   if: always()
+      #   env:
+      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      #     SLACK_CHANNEL_ID: 'C08RG8A30M9'
+      #   run: |
+      #     payload='{"channel":"$SLACK_CHANNEL_ID","text":"Test"}'
+      #     curl -X POST -H 'Content-type: application/json' \
+      #     --data "$payload" \
+      #     "$SLACK_WEBHOOK_URL"
+
+      - name: Format Kubescape Results for Markdown
+        id: format-markdown
         run: |
           if [ -f results.json ]; then
-            report=$(cat results.json | jq -c '.summaryDetails.controls | to_entries[] | "*Rule:* \(.value.name), *Status:* \(.value.status), *Category:* \(.value.category.name), *Score:* \(.value.score)"' | paste -sd "\n")
-            echo "::set-output name=slack_report::$report"
+            report=$(cat results.json | jq '.summaryDetails.controls | to_entries[] | "* **Rule:** \(.value.name)
+              * **Status:** \(.value.status)
+              * **Category:** \(.value.category.name)
+              * **Score:** \(.value.score)"' | paste -sd "\n\n")
+            echo "::set-output name=markdown_report::$report"
           else
-            echo "::set-output name=slack_report::No Kubescape results found."
+            echo "::set-output name=markdown_report::No Kubescape results found."
           fi
 
-      - name: Send Kubescape Report to Slack
-        if: always()
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_CHANNEL_ID: 'C08RG8A30M9'
+      - name: Add Kubescape Report to Summary
+        if: steps.format-markdown.outputs.markdown_report != 'No Kubescape results found.'
         run: |
-          payload='{"channel":"$SLACK_CHANNEL_ID","text":"Test"}'
-          curl -X POST -H 'Content-type: application/json' \
-          --data "$payload" \
-          "$SLACK_WEBHOOK_URL"
+          echo "## Kubescape Scan Report" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.format-markdown.outputs.markdown_report }}" >> $GITHUB_STEP_SUMMARY
