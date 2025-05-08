@@ -46,7 +46,7 @@ jobs:
           fi
 
       - name: Summarize Kubescape Scan Results
-        if: success() # changed from if: steps.run_kubescape_scan.outputs.json_valid == 'true'
+        if: success()
         run: |
           # Install jq
           sudo apt-get update
@@ -55,13 +55,24 @@ jobs:
           # Read the JSON report
           report_json=$(cat kubescape_report.json)
 
-          # Extract summary information using jq
-          summary=$(echo "$report_json" | jq -r '{
-            "total_controls": .Summary.TotalResources,
-            "failed_controls": .Summary.FailedResources,
-            "passed_controls": (.Summary.TotalResources - .Summary.FailedResources),
-            "compliance_percentage": (100 - (.Summary.FailedResources / .Summary.TotalResources * 100))
-          }')
+          # Extract summary information using jq with null checks
+          summary=$(echo "$report_json" | jq -r '
+            if (.Summary.TotalResources != null and .Summary.FailedResources != null) then
+              {
+                "total_controls": .Summary.TotalResources,
+                "failed_controls": .Summary.FailedResources,
+                "passed_controls": (.Summary.TotalResources - .Summary.FailedResources),
+                "compliance_percentage": (100 - (.Summary.FailedResources / .Summary.TotalResources * 100))
+              }
+            else
+              {
+                "total_controls": 0,
+                "failed_controls": 0,
+                "passed_controls": 0,
+                "compliance_percentage": 0
+              }
+            end
+          ')
 
           # Output the summary to GitHub Actions summary
           echo "## Kubescape Scan Summary" >> $GITHUB_STEP_SUMMARY
