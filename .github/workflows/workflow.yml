@@ -13,6 +13,8 @@ jobs:
       actions: read
       contents: read
       security-events: write
+    outputs:
+      json_valid: ${{ steps.kubescape_scan.outputs.json_valid }} # Define at job level
 
     steps:
       - name: Checkout code
@@ -40,16 +42,18 @@ jobs:
           # Check the output of the Kubescape scan
           if [ ! -s "kubescape_report.json" ]; then
             echo "Error: kubescape_report.json is empty or does not exist.  The Kubescape scan may have failed."
+            echo "::set-output name=json_valid::false"
             exit 1
           else
             echo "Kubescape scan completed successfully.  Output written to kubescape_report.json"
             cat kubescape_report.json # Output the contents for debugging
+            echo "::set-output name=json_valid::true"
           fi
         outputs:
           json_valid: ${{ ! ( ! -s 'kubescape_report.json' ) }} # Set output
 
       - name: Convert JSON to PDF Report
-        if: steps.kubescape-scan.outputs.json_valid == 'true'
+        if: needs.kubescape_scan_slack.outputs.json_valid == 'true'
         run: |
           # Install jq (if not already installed)
           sudo apt-get update
@@ -192,7 +196,7 @@ jobs:
           EOF
 
       - name: Upload PDF Report to Slack
-        if: steps.kubescape-scan.outputs.json_valid == 'true'
+        if: needs.kubescape_scan_slack.outputs.json_valid == 'true'
         uses: slackapi/slack-github-action@v2
         with:
           token: ${{ secrets.SLACK_BOT_TOKEN }}
