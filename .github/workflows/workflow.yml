@@ -46,7 +46,6 @@ jobs:
           else
             echo "Kubescape scan completed successfully.  Output written to kubescape_report.json"
             cat kubescape_report.json # Output the contents for debugging
-            echo "::set-output name=json_valid::true"
           fi
 
       - name: Debug Output - json_valid
