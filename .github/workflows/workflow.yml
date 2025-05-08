@@ -85,7 +85,11 @@ jobs:
 
       - name: Run Kubescape Scan (JSON Output)
         id: kubescape-scan
-        run: kubescape scan --format json --output kubescape_report.json
+        run: kubescape scan framework nsa -v --format json --output kubescape_report.json
+
+      - name: Debug Kubescape Output (JSON)
+        if: always()
+        run: cat kubescape_report.json
 
       - name: Format Kubescape Results as Markdown Table
         if: always()
