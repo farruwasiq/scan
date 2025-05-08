@@ -102,8 +102,8 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           scanType: 'k8s'
-          flags: '--disable-node-collector --report all --scanners misconfig'
-          outputFormat: 'json'
+          scanners: 'misconfig'
+          format: 'json'
           output: 'trivy_report.json'
 
       - name: Summarize Trivy Scan Results
@@ -125,8 +125,8 @@ jobs:
             'if .Results | length > 0 then
               "| Target | Severity | Control ID | Title | Status |\n" +
               "|---|---|---|---|---|\n" +
-              (.Results[] | .Vulnerabilities[] |
-                "|\(.Target) | \(.Severity) | \(.VulnerabilityID) | \(.Title) | \(.Status) |"
+              (.Results[] | .Misconfigurations[] |
+                "|\(.Target) | \(.Severity) | \(.ID) | \(.Title) | \(.Status) |"
               ) | join("\n")
             else
               "No misconfigurations found."
