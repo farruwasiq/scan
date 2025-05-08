@@ -96,14 +96,7 @@ jobs:
               "Control Name: \(.value.name)\\n" +
               "Status: \(.value.status)\\n" +
               "Category: \(.value.category.name)\\n" +
-              "Score: \(.value.score)\\n\\n" +
-              "Failed Resources:\\n" +
-              (if .value.status == "failed" and (.value | has("resourceIDs")) then
-                (.value.resourceIDs | keys | map("  - \(.)") | join("\\n"))
-              else
-                "  No failed resources for this control"
-              end) + "\\n\\n"'
-            )
+              "Score: \(.value.score)\\n\\n"')
             echo "## Kubescape Scan Results (NSA Framework)" >> $GITHUB_STEP_SUMMARY
             echo "$report" >> $GITHUB_STEP_SUMMARY
           else
