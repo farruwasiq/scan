@@ -66,7 +66,7 @@ jobs:
               "## Kubescape Scan Summary\n\n" +
               "| Total Controls | Failed Controls | Passed Controls | Compliance |\n" +
               "|---|---|---|---|\n" +
-              "| \(($report.TotalResources | null_to_zero)) | \($report.Summary.FailedResources | null_to_zero) | \($report.Summary.TotalResources | null_to_zero - ($report.Summary.FailedResources | null_to_zero)) | \((100 - ($report.Summary.FailedResources | null_to_zero) / ($report.Summary.TotalResources | null_to_zero) * 100) | to_number | @text | printf \"%.2f%%\" ) |\n\n" +
+              "| \(($report.Summary.TotalResources | null_to_zero)) | \($report.Summary.FailedResources | null_to_zero) | \($report.Summary.TotalResources | null_to_zero - ($report.Summary.FailedResources | null_to_zero)) | \((100 - ($report.Summary.FailedResources | null_to_zero) / ($report.Summary.TotalResources | null_to_zero) * 100) | to_number | @text | printf \"%.2f%%\" ) |\n\n" +
               
               "### Failed Controls\n\n" +
               (if ($report.Results | length) > 0 then
@@ -113,18 +113,16 @@ jobs:
       - name: Run Trivy k8s scan
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'k8s'
-          scan-ref: .
+          scanType: 'k8s'
           scanners: 'misconfig'
           format: 'json'
           output: 'trivy_report.json'
-          k8sConfig: ~/.kube/config
-          ignore-unfixed: true
+          # k8sConfig: ~/.kube/config # Removed this line
 
       - name: Summarize Trivy Scan Results
         if: success()
         run: |
-          # Install jq (if not already present)
+          # Install jq
           sudo apt-get update
           sudo apt-get install -y jq
 
