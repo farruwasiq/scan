@@ -103,8 +103,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y apt-transport-https curl
 
-          curl -sSL https://aquasecurity.github.io/trivy-repo/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
-          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb stable main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          # Download and install the key
+          curl -sSL https://aquasecurity.github.io/trivy-repo/public.key | \
+          sudo gpg --dearmor -o /usr/share/keyrings/aquasecurity-archive-keyring.gpg
+
+          # Add the repository
+          echo "deb [signed-by=/usr/share/keyrings/aquasecurity-archive-keyring.gpg] \
+          https://aquasecurity.github.io/trivy-repo/deb stable main" | \
+          sudo tee /etc/apt/sources.list.d/trivy.list
+
           sudo apt-get update
           sudo apt-get install -y trivy
 
