@@ -54,7 +54,7 @@ jobs:
           report_escaped=$(echo "$KUBESCAPE_REPORT" | jq -sR .)
           payload=$(jq -n --arg channel "$SLACK_CHANNEL_ID" --arg report "$report_escaped" '{
             channel: $channel,
-            text: "*Kubescape Scan Report:*\n" + $report
+            text: "*Kubescape Scan Report:*\n\( $report )"
           }')
           curl -X POST -H 'Content-type: application/json' \
           --data "$payload" \
