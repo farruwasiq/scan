@@ -25,7 +25,7 @@ jobs:
 
       - name: Run Kubescape on Minikube
         id: kubescape-scan-cluster
-        run: kubescape scan --format json --output results.json
+        run: kubescape scan framework nsa -v --format json --output results.json
 
       # - name: Format Kubescape Results for Slack
       #   id: format-results
@@ -48,18 +48,13 @@ jobs:
       #     --data "$payload" \
       #     "$SLACK_WEBHOOK_URL"
 
-      - name: Format Kubescape Results for Markdown
-        id: format-markdown
+      - name: Run Kubescape on Minikube and Generate Summary
+        id: kubescape-summary
         run: |
-          if [ -f results.json ]; then
-            report=$(cat results.json | jq -r '.summaryDetails.controls | to_entries[] | "* **Rule:** \(.value.name)\n* **Status:** \(.value.status)\n* **Category:** \(.value.category.name)\n* **Score:** \(.value.score)\n\n"' )
-            echo "::set-output name=markdown_report::$report"
-          else
-            echo "::set-output name=markdown_report::No Kubescape results found."
-          fi
+          summary=$(kubescape scan framework nsa -v --format text)
+          echo "::set-output name=report::$summary"
 
       - name: Add Kubescape Report to Summary
-        if: steps.format-markdown.outputs.markdown_report != 'No Kubescape results found.'
         run: |
-          echo "## Kubescape Scan Report" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.format-markdown.outputs.markdown_report }}" >> $GITHUB_STEP_SUMMARY
+          echo "## Kubescape Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.kubescape-summary.outputs.report }}" >> $GITHUB_STEP_SUMMARY
