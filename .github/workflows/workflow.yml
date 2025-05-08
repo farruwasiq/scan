@@ -49,7 +49,7 @@ jobs:
           fi
 
       - name: Convert JSON to PDF Report
-        if: needs.kubescape_scan_slack.outputs.json_valid == 'true'
+        if: steps.run_kubescape_scan.outputs.json_valid == 'true'
         run: |
           # Install jq (if not already installed)
           sudo apt-get update
@@ -191,7 +191,7 @@ jobs:
           EOF
 
       - name: Upload PDF Report to Slack
-        if: needs.kubescape_scan_slack.outputs.json_valid == 'true'
+        if: steps.run_kubescape_scan.outputs.json_valid == 'true'
         uses: slackapi/slack-github-action@v2
         with:
           token: ${{ secrets.SLACK_BOT_TOKEN }}
