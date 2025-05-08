@@ -1,15 +1,21 @@
 name: Slack Notification Test
 
 on:
-  workflow_dispatch: # Allows manual triggering from the Actions tab
+  workflow_dispatch:
 
 jobs:
   slack_notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Send Slack notification
-        uses: slackapi/slack-github-action@v1.24.0
-        with:
-          webhookUrl: ${{ secrets.SLACK_WEBHOOK_URL }}
-          channel-id: 'C08RG8A30M9'
-          slack-message: 'Hello from GitHub Actions!'
+      - name: Send Slack notification (via payload)
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_CHANNEL_ID: 'C08RG8A30M9'
+          SLACK_MESSAGE: 'Hello from GitHub Actions!'
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data "{
+              \"channel\": \"$SLACK_CHANNEL_ID\",
+              \"text\": \"$SLACK_MESSAGE\"
+            }" \
+          "$SLACK_WEBHOOK_URL"
