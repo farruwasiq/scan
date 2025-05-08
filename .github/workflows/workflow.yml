@@ -51,7 +51,9 @@ jobs:
       - name: Run Kubescape on Minikube and Generate Summary
         id: kubescape-summary
         run: |
-          echo "::set-output name=report::$(kubescape scan --format text)"
+          kubescape scan framework nsa -v --format text > kubescape_report.txt
+          report=$(cat kubescape_report.txt)
+          echo "::set-output name=report::$report"
 
       - name: Add Kubescape Report to Summary
         run: |
