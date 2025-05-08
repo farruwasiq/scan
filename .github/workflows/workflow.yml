@@ -1,11 +1,58 @@
-name: Test Runner
+name: Kubescape Scan
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
-  test_runner:
+  kubescape_scan:
     runs-on: ubuntu-latest
     steps:
-      - name: Hello
-        run: echo "Hello from GitHub Actions!"
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Minikube
+        uses: manusa/actions-setup-minikube@latest # Or a specific version
+        with:
+          minikube version: 'latest'
+          kubernetes version: 'latest'
+
+      - name: Enable Minikube Addons (if needed)
+        run: |
+          minikube addons enable default-storageclass # Example
+          # Add other necessary addons
+
+      - name: Install Kubescape
+        run: |
+          curl -s https://raw.githubusercontent.com/armosec/kubescape/master/install.sh | sudo bash
+          kubescape version
+
+      - name: Run Kubescape on Minikube
+        id: kubescape-scan-cluster
+        run: kubescape scan --format json --output results.json
+
+      - name: Format Kubescape Results for Slack
+        id: format-results
+        run: |
+          if [ -f results.json ]; then
+            report=$(cat results.json | jq -c '.results[] | "*Rule:* \(.ruleName), *Status:* \(.status), *Severity:* \(.severity)"' | paste -sd "\n")
+            echo "::set-output name=slack_report::$report"
+          else
+            echo "::set-output name=slack_report::No Kubescape results found."
+          fi
+
+      - name: Send Kubescape Report to Slack
+        if: always()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_CHANNEL_ID: 'C08RG8A30M9'
+          KUBESCAPE_REPORT: ${{ steps.format-results.outputs.slack_report }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data "{
+              \"channel\": \"$SLACK_CHANNEL_ID\",
+              \"text\": \"*Kubescape Scan Report:*\n$KUBESCAPE_REPORT\"
+            }" \
+          "$SLACK_WEBHOOK_URL"
