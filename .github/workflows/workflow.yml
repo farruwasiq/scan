@@ -1,4 +1,4 @@
-name: Kubescape Scan and GitHub Summary
+name: Kubescape and Trivy Scan
 
 on:
   push:
@@ -79,3 +79,66 @@ jobs:
                 "No failed controls found."
               end)
             ' >> $GITHUB_STEP_SUMMARY
+
+  trivy_scan_summary: # Added Trivy Scan Job
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Minikube for Trivy
+        uses: medyagh/setup-minikube@latest
+        with:
+          kubernetes-version: 'latest'
+
+      - name: Wait for Minikube to be Ready (Trivy)
+        run: kubectl wait --for=condition=ready node/minikube --timeout=60s
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget
+          wget https://github.com/aquasecurity/trivy/releases/download/v0.49.1/trivy_0.49.1_Linux-x86_64.deb #hardcoded the version.
+          sudo dpkg -i trivy_0.49.1_Linux-x86_64.deb
+          trivy version
+
+      - name: Run Trivy k8s scan
+        id: trivy_k8s_scan
+        run: |
+          trivy k8s --disable-node-collector --report all --scanners misconfig --output trivy_report.json
+          if [ ! -s "trivy_report.json" ]; then
+            echo "Error: trivy_report.json is empty or does not exist. Trivy scan may have failed."
+            exit 1
+          else
+            echo "Trivy scan completed successfully. Output written to trivy_report.json"
+          fi
+
+      - name: Summarize Trivy Scan Results
+        if: success()
+        run: |
+          # Install jq (if not already present)
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+          # Read the JSON report
+          trivy_report_json=$(cat trivy_report.json)
+
+          # Output the summary to GitHub Actions summary
+          echo "## Trivy Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Use jq to extract and format the results
+          echo "$trivy_report_json" | jq -r \
+            'if .Results | length > 0 then
+              "| Target | Severity | Control ID | Title | Status |\n" +
+              "|---|---|---|---|---|\n" +
+              (.Results[] | .Vulnerabilities[] |
+                "|\(.Target) | \(.Severity) | \(.VulnerabilityID) | \(.Title) | \(.Status) |"
+              ) | join("\n")
+            else
+              "No misconfigurations found."
+            end' >> $GITHUB_STEP_SUMMARY
