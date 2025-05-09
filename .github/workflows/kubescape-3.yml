@@ -41,8 +41,9 @@ jobs:
         with:
           sarif_file: results.sarif
 
-      - name: Upload Raw JSON Results
+      - name: Upload SARIF File as Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Kubescape_JSON_Output
-          path: results.json
+          name: Kubescape_SARIF_Output
+          path: results.sarif
+
