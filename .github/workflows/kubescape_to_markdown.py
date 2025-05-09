@@ -63,7 +63,7 @@ for resource in resources:
         f"**Name:** {name}",
         f"**Namespace:** {namespace}",
         f"**Controls:** {len(related_controls)} (Failed: {failed_controls}, action required: {action_required})",
-        f""
+        ""
     ]
 
     # Add control details
@@ -81,10 +81,8 @@ for resource in resources:
             resource_section.append(f"- **Severity:** {severity_display}")
             resource_section.append(f"- **Control Name:** {control_name}")
             resource_section.append(f"- **Docs:** {docs}")
-            resource_section.append(f"- **Assisted Remediation:**\n```
-{remediation if remediation else 'N/A'}
-```
-")
+            resource_section.append("- **Assisted Remediation:**")
+            resource_section.append(f"```\n{remediation if remediation else 'N/A'}\n```")
         resource_section.append("")
 
     resource_blocks.append('\n'.join(resource_section))
