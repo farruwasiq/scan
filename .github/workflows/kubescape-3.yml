@@ -2,7 +2,6 @@ name: Kubescape Scan on Minikube
 
 on:
   push:
-    
 
 jobs:
   scan:
@@ -29,15 +28,12 @@ jobs:
           kubescape scan framework nsa -v --format json --output results.json
 
       - name: Convert JSON to SARIF
-        uses: jeffrafter/json-to-sarif-action@v1
+        uses: garethr/snyk-to-sarif@master
         with:
           input: results.json
           output: results.sarif
-          tool-name: "Kubescape"
-          tool-url: "https://github.com/armosec/kubescape"
 
-
-      - name: Upload SARIF to GitHub
+      - name: Upload SARIF Results
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: results.sarif
