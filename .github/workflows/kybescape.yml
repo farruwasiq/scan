@@ -32,10 +32,9 @@ jobs:
         run: |
           curl -s https://raw.githubusercontent.com/armosec/kubescape/master/install.sh | bash -s -- -d ./
           export PATH=$PATH:$(pwd)
-
-      - name: Run Kubescape Scan
-        run: |
           kubescape scan framwork nsa --format json --output results.json
+
+      
 
       - name: Convert JSON to HTML Table
         id: json_to_html
