@@ -36,30 +36,42 @@ controls_table = tabulate(
     tablefmt="github"
 )
 
-# Extract resource summaries with additional details
+# Extract detailed resource summaries
 resources = data.get('resources', [])
 
-resource_rows = []
+resource_blocks = []
 for resource in resources:
     obj = resource.get('object', {})
-    resource_id = resource.get('resourceID', 'N/A')
     kind = obj.get('kind', 'N/A')
     name = obj.get('name', 'N/A')
     namespace = obj.get('namespace', 'N/A')
-    severity = obj.get('severity', 'N/A')
-    remediation = obj.get('remediation', 'N/A')
-    resource_rows.append([resource_id, kind, name, namespace, severity, remediation])
+    api_version = obj.get('apiVersion', 'N/A')
 
-# Generate the detailed resources table
-resources_table = tabulate(
-    resource_rows,
-    headers=["Resource ID", "Kind", "Name", "Namespace", "Severity", "Remediation"],
-    tablefmt="github"
-)
+    # Extracting the controls linked to this resource
+    related_controls = resource.get('controls', [])
+    resource_section = [f"### Resource: {kind} - {name} (Namespace: {namespace})"]
+    resource_section.append(f"ApiVersion: {api_version}")
+    resource_section.append(f"Kind: {kind}")
+    resource_section.append(f"Name: {name}")
+    resource_section.append(f"Namespace: {namespace}\n")
 
-# Print the tables
+    # Add control details
+    for ctrl in related_controls:
+        control_name = ctrl.get('name', 'N/A')
+        severity = ctrl.get('severity', 'N/A')
+        docs = ctrl.get('documentation', 'N/A')
+        remediation = '\n'.join(ctrl.get('remediation', []))
+
+        resource_section.append(f"Severity: **{severity}**")
+        resource_section.append(f"Control Name: {control_name}")
+        resource_section.append(f"Docs: {docs}")
+        resource_section.append(f"Assisted Remediation:\n{remediation if remediation else 'N/A'}\n")
+
+    resource_blocks.append('\n'.join(resource_section))
+
+# Combine all sections
 print("### Controls Summary")
 print(controls_table)
 print()
 print("### Detailed Resources Summary")
-print(resources_table)
+print('\n\n'.join(resource_blocks))
