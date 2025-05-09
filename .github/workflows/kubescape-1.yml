@@ -14,12 +14,12 @@ jobs:
       - name: Set up Minikube
         uses: medyagh/setup-minikube@latest
         with:
-          kubernetes-version: 'v1.23.3' # specify k8s version, to avoid errors.
+          kubernetes-version: 'v1.23.3'
 
       - name: Set up Kubectl
         uses: azure/setup-kubectl@v4
         with:
-          version: 'v1.23.3' #Make sure this matches the minikube version
+          version: 'v1.23.3'
 
       - name: Install Kubescape
         run: |
@@ -28,11 +28,15 @@ jobs:
           export PATH=$PATH:/home/runner/.kubescape/bin
           kubescape scan framework nsa -v --format json --output results.json
 
-      - name: Convert Kubescape JSON to Markdown Table (using Python)
-        #uses: actions/checkout@v4
+      - name: Install Python Dependencies
         run: |
-          python .github/workflows/kubescape_to_markdown.py results.json > results.md
-        # Add a step to upload the results.md file as an artifact.
+          python3 -m pip install --upgrade pip
+          python3 -m pip install tabulate
+
+      - name: Convert Kubescape JSON to Markdown Table (using Python)
+        run: |
+          python3 .github/workflows/kubescape_to_markdown.py results.json > results.md
+
       - name: Upload Kubescape Report
         uses: actions/upload-artifact@v4
         with:
@@ -43,11 +47,9 @@ jobs:
         if: always()
         run: |
           cat results.md >> $GITHUB_STEP_SUMMARY
-      - name: Upload results.json # Changed from a separate job to a step
+
+      - name: Upload results.json
         uses: actions/upload-artifact@v4
         with:
           name: Kubescape_JSON_Output
           path: results.json
-    
-    
-
