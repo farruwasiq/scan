@@ -31,13 +31,13 @@ jobs:
           export PATH=$PATH:/home/runner/.kubescape/bin
           kubescape scan framework nsa --format json --output results.json
 
-      - name: Convert JSON to HTML Table
-        id: json_to_html
-        uses: Teebra/JSON-to-HTML-table@v2.0.0
-        with:
-          json-file: results.json
-          # Optional: You can customize the table styling.
-          # style: |
+      # - name: Convert JSON to HTML Table
+      #   id: json_to_html
+      #   uses: Teebra/JSON-to-HTML-table@v2.0.0
+      #   with:
+      #     json-file: results.json
+      #     # Optional: You can customize the table styling.
+      #     # style: |
           #   .table-class {
           #     border-collapse: collapse;
           #     width: 100%;
@@ -54,12 +54,25 @@ jobs:
           #     background-color: #f2f2f2;
           #   }
           
-      - name: Add Results to Summary
-        run: |
-          echo "## Kubescape Scan Results" >> $GITHUB_STEP_SUMMARY
-          # Check if the conversion produced a table.
-          if [[ -n "${{ steps.json_to_html.outputs.html }}" ]]; then
-            echo "${{ steps.json_to_html.outputs.html }}" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "No results to display or error converting to HTML.  Check 'results.json'" >> $GITHUB_STEP_SUMMARY
-          fi
+      # - name: Add Results to Summary
+      #   run: |
+      #     echo "## Kubescape Scan Results" >> $GITHUB_STEP_SUMMARY
+      #     # Check if the conversion produced a table.
+      #     if [[ -n "${{ steps.json_to_html.outputs.html }}" ]]; then
+      #       echo "${{ steps.json_to_html.outputs.html }}" >> $GITHUB_STEP_SUMMARY
+      #     else
+      #       echo "No results to display or error converting to HTML.  Check 'results.json'" >> $GITHUB_STEP_SUMMARY
+      #     fi
+      
+
+
+      - name: Convert JSON to HTML Table
+        uses: Teebra/JSON-to-HTML-table@v2.0.0
+        with:
+          json-file: results.json
+      
+      - name: Upload HTML Table to Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: output_html 
+          path: output.html # The created file's name is output.html. Name cannot be changed
