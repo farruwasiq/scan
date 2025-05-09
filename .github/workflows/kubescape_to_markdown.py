@@ -47,7 +47,7 @@ def json_to_markdown_table(json_file):
                         message = status_info.get("info", "N/A")
                         severity = result.get("severity", "N/A")
                         docs_link = get_docs_link(control_id)
-                        remediation = result.get("remediation", "N/A")
+                        remediation = control.get("remediation", "N/A") # change from result.get to control.get
                         if status == "failed":  # Only process failed controls
                             resource_data[resource_id]["controls"].append({
                                 "control_id": control_id,
@@ -63,19 +63,24 @@ def json_to_markdown_table(json_file):
     for resource_id, resource_info in resource_data.items():
         if resource_info["controls"]:  # Only generate output if there are failed controls
             markdown_output += "################################################################################\n"
-            markdown_output += f"ApiVersion: {resource_info['apiVersion']}\n"
-            markdown_output += f"Kind: {resource_info['kind']}\n"
-            markdown_output += f"Name: {resource_info['name']}\n"
-            markdown_output += f"Namespace: {resource_info['namespace']}\n\n"
-            markdown_output += f"Controls: {len(resource_info['controls'])} (Failed: {len(resource_info['controls'])}, Action Required: 0)\n\n"  # Added Action Required
+            markdown_output += f"**ApiVersion**: {resource_info['apiVersion']}\n"
+            markdown_output += f"**Kind**: {resource_info['kind']}\n"
+            markdown_output += f"**Name**: {resource_info['name']}\n"
+            markdown_output += f"**Namespace**: {resource_info['namespace']}\n\n"
+            markdown_output += f"**Controls**: {len(resource_info['controls'])} (Failed: {len(resource_info['controls'])}, Action Required: 0)\n\n"  # Added Action Required
 
             for control in resource_info["controls"]:
-                markdown_output += "┌" + "─" * 104 + "┐\n"
-                markdown_output += f"│ Severity             : {control['severity']}\n"
-                markdown_output += f"│ Control Name         : {control['control_name']}\n"
-                markdown_output += f"│ Docs                 : {control['docs_link']}\n"
-                markdown_output += f"│ Assisted Remediation : {control['remediation']}\n"
-                markdown_output += "└" + "─" * 104 + "┘\n"
+                markdown_output += "<details>\n"
+                markdown_output += f"<summary>**Control Name**: {control['control_name']}  **(ID: {control['control_id']})**</summary>\n\n"
+                markdown_output += "| Property | Value |\n"
+                markdown_output += "|----------|-------|\n"
+                markdown_output += f"| Severity | {control['severity']} |\n"
+                markdown_output += f"| Status   | {control['status']} |\n"
+                markdown_output += f"| Message  | {control['message']} |\n"
+                markdown_output += f"| Docs     | [{control['docs_link']}]({control['docs_link']}) |\n"
+                markdown_output += f"| Remediation| {control['remediation']} |\n"
+                markdown_output += "</details>\n\n"
+
     if not markdown_output.strip():
         markdown_output = "No failed controls found.\n"
     return markdown_output
