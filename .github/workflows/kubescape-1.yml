@@ -1,0 +1,50 @@
+name: Kubescape Scan on Minikube
+
+on:
+  push:
+    
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Minikube
+        uses: medyagh/setup-minikube@latest
+        with:
+          kubernetes-version: 'v1.23.3' # specify k8s version, to avoid errors.
+
+      - name: Set up Kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.23.3' #Make sure this matches the minikube version
+
+      - name: Install Kubescape
+        run: |
+          curl -s https://raw.githubusercontent.com/armosec/kubescape/master/install.sh | bash -s -- -d ./kubescape
+
+      - name: Run Kubescape Scan
+        id: kubescape-scan
+        run: |
+          ./kubescape scan framework nsa -v --format json --output results.json
+
+      - name: Convert Kubescape JSON to Markdown Table (using Python)
+        run: |
+          python ./scripts/kubescape_to_markdown.py results.json > results.md
+        # Add a step to upload the results.md file as an artifact.
+      - name: Upload Kubescape Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kubescape_Report
+          path: results.md
+
+      - name: Output results to Summary
+        if: always()
+        run: |
+          cat results.md >> $GITHUB_STEP_SUMMARY
+    
+    
+# Create a folder named "scripts" and add the python script
+# File: scripts/kubescape_to_markdown.py
