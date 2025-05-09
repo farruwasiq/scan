@@ -29,7 +29,7 @@ jobs:
           kubescape scan framework nsa -v --format json --output results.json
 
       - name: Convert Kubescape JSON to Markdown Table (using Python)
-        uses: actions/checkout@v4
+        #uses: actions/checkout@v4
         run: |
           python kubescape_to_markdown.py results.json > results.md
         # Add a step to upload the results.md file as an artifact.
