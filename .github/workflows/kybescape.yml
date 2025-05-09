@@ -30,9 +30,10 @@ jobs:
       #     kubescape scan framework nsa -v --format json --output results.json
       - name: Install kubescape and scan cluster
         uses: kubescape/github-action@main
-        continue-on-error: true
+        continue-on-error: false
         with:
           format: json
+          verbose: v
           outputFile: results
           frameworks: |
             nsa,mitre
