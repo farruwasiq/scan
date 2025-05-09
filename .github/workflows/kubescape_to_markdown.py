@@ -26,12 +26,12 @@ def get_kubescape_tables(json_file):
     # 1. Summary Details Table
     try:
         if "summaryDetails" in data and "controls" in data["summaryDetails"]:
-            tables["summary_details"] = {
+            tables["SUMMARY_DETAILS"] = {  # Changed key name to uppercase
                 "controls": {}
             }
             controls = data["summaryDetails"]["controls"]
             for control_id, control_data in controls.items():
-                tables["summary_details"]["controls"][control_id] = {
+                tables["SUMMARY_DETAILS"]["controls"][control_id] = {  # Consistent key name
                     "name": control_data.get("name") or control_data.get("controlName") or "N/A",
                     "status": control_data.get("statusInfo", {}).get("status", "N/A"),
                     "complianceScore": control_data.get("complianceScore", "N/A"),
@@ -43,10 +43,10 @@ def get_kubescape_tables(json_file):
     # 2. Resources Table
     try:
         if "resources" in data and isinstance(data["resources"], list):
-            tables["resources"] = []
+            tables["RESOURCES"] = []  # Changed key name to uppercase
             for resource in data["resources"]:
                 if isinstance(resource, dict) and "object" in resource and isinstance(resource["object"], dict):
-                    tables["resources"].append({
+                    tables["RESOURCES"].append({  # Consistent key name
                         "resourceID": resource.get("resourceID", "N/A"),
                         "kind": resource["object"].get("kind", "N/A"),
                         "namespace": resource["object"].get("namespace", "N/A"),
@@ -59,10 +59,10 @@ def get_kubescape_tables(json_file):
     # 3. Frameworks Table
     try:
         if "frameworks" in data and isinstance(data["frameworks"], list):
-            tables["frameworks"] = []
+            tables["FRAMEWORKS"] = []  # Changed key name to uppercase
             for framework in data["frameworks"]:
                 if isinstance(framework, dict):
-                    tables["frameworks"].append({
+                    tables["FRAMEWORKS"].append({  # Consistent key name
                         "name": framework.get("name", "N/A"),
                         "status": framework.get("status", "N/A"),
                         "complianceScore": framework.get("complianceScore", "N/A"),
@@ -74,7 +74,7 @@ def get_kubescape_tables(json_file):
     # 4. Results Table
     try:
         if "results" in data:
-            tables["results"] = []
+            tables["RESULTS"] = []  # Changed key name to uppercase
             results = data["results"]
             if isinstance(results, list):
                 for result in results:
@@ -82,19 +82,19 @@ def get_kubescape_tables(json_file):
                         resource_id = result.get("resourceID", "N/A")
                         controls_data = result.get("controls", [])
                         if isinstance(controls_data, list):
-                           for control_data in controls_data:
-                               tables["results"].append({
-                                   "resourceID": resource_id,
-                                   "controlID": control_data.get("controlID", "N/A"),
-                                   "controlName": control_data.get("name") or control_data.get("controlName") or "N/A",
-                                   "status": control_data.get("status", {}).get("status", "N/A"),
-                                   "message": control_data.get("status", {}).get("info", "N/A"),
-                                   "severity": result.get("severity", "N/A"),
-                                   "category": result.get("category", "N/A"),
-                                   "remediation": result.get("remediation", "N/A"),
-                                   "namespace": result.get("namespace", "N/A"),
-                                   "name": result.get("name", "N/A")
-                               })
+                            for control_data in controls_data:
+                                tables["RESULTS"].append({  # Consistent key name
+                                    "resourceID": resource_id,
+                                    "controlID": control_data.get("controlID", "N/A"),
+                                    "controlName": control_data.get("name") or control_data.get("controlName") or "N/A",
+                                    "status": control_data.get("status", {}).get("status", "N/A"),
+                                    "message": control_data.get("status", {}).get("info", "N/A"),
+                                    "severity": result.get("severity", "N/A"),
+                                    "category": result.get("category", "N/A"),
+                                    "remediation": result.get("remediation", "N/A"),
+                                    "namespace": result.get("namespace", "N/A"),
+                                    "name": result.get("name", "N/A")
+                                })
                         else:
                             print(f"Warning: 'controls' is not a list for resourceID: {resource_id}, skipping")
                     else:
@@ -108,11 +108,11 @@ def get_kubescape_tables(json_file):
     # 5. Control Reports Table
     try:
         if "controlReports" in data:
-            tables["controlReports"] = []
+            tables["CONTROLREPORTS"] = []  # Changed key name to uppercase
             control_reports = data["controlReports"]
             if isinstance(control_reports, list):
                 for report in control_reports:
-                    tables["controlReports"].append({
+                    tables["CONTROLREPORTS"].append({  # Consistent key name
                         "controlID": report.get("controlID", "N/A"),
                         "controlName": report.get("name", "N/A"),
                         "failedResources": report.get("failedResources", "N/A"),
@@ -120,7 +120,7 @@ def get_kubescape_tables(json_file):
                     })
             elif isinstance(control_reports, dict):
                 for control_id, report_data in control_reports.items():
-                    tables["controlReports"].append({
+                    tables["CONTROLREPORTS"].append({  # Consistent key name
                         "controlID": control_id,
                         "controlName": report_data.get("name", "N/A"),
                         "failedResources": report_data.get("failedResources", "N/A"),
@@ -145,7 +145,7 @@ def print_tables(tables):
 
     # Print each table separately
     for table_name, table_data in tables.items():
-        print(f"\n--- {table_name.upper()} ---")
+        print(f"\n--- {table_name} ---")  # Keep table name as is
         print(json.dumps(table_data, indent=4))  # Use json.dumps for formatted output
 
 if __name__ == "__main__":
