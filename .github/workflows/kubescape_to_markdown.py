@@ -195,4 +195,3 @@ if __name__ == "__main__":
         print(markdown_output)
     else:
         print("No tables generated.")
-
