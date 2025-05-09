@@ -19,7 +19,7 @@ jobs:
           kubernetes-version: 'v1.28.0'
 
       - name: Install kubectl
-        uses: kubernetes-sigs/setup-kubectl@v3
+        uses: azure/setup-kubectl@v4
         with:
           install-latest: true
 
