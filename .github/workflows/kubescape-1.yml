@@ -31,7 +31,7 @@ jobs:
       - name: Convert Kubescape JSON to Markdown Table (using Python)
         #uses: actions/checkout@v4
         run: |
-          python kubescape_to_markdown.py results.json > results.md
+          python .github/workflows/kubescape_to_markdown.py results.json > results.md
         # Add a step to upload the results.md file as an artifact.
       - name: Upload Kubescape Report
         uses: actions/upload-artifact@v4
