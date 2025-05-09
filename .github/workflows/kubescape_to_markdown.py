@@ -68,7 +68,7 @@ def json_to_markdown_table(json_file):
     table += "| " + " | ".join(["---"] * len(headers)) + " |\n"
     for row in rows:
         table += "| " + " | ".join(row) + " |\n"
-    return table.
+    return table
     
 
 if __name__ == "__main__":
