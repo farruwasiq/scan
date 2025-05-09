@@ -66,7 +66,58 @@ def json_to_markdown_table(json_file):
                 compliance_score = framework.get("complianceScore", "N/A")
                 rows.append([name, status, str(compliance_score)])
         tables["Frameworks"] = format_markdown_table(headers, rows)
-    
+
+    # 4. Results Table
+    if "results" in data:
+        results = data["results"]
+        headers = ["Control ID", "Control Name", "Status", "Message", "Severity", "Category", "Remediation", "Namespace", "Name"] # Added Namespace and Name
+        rows = []
+        if isinstance(results, dict):
+            for control_id, control_data in results.items():
+                control_name = control_data.get("name") or control_data.get("controlName") or control_id or "N/A"
+                status = control_data.get("statusInfo", {}).get("status", "N/A")
+                message = control_data.get("statusInfo", {}).get("info", "N/A")
+                severity = control_data.get("severity", "N/A")
+                category = control_data.get("category", "N/A")
+                remediation = control_data.get("remediation", "N/A")
+                namespace = control_data.get("namespace", "N/A")  # Get Namespace
+                name = control_data.get("name", "N/A")  # Get Name
+                rows.append([control_id, control_name, status, message, severity, category, remediation, namespace, name]) # Added namespace and name
+            tables["Results"] = format_markdown_table(headers, rows)
+        elif isinstance(results, list):
+            for result in results:
+                control_name = result.get("name") or result.get("controlName") or  "N/A"
+                status = result.get("statusInfo", {}).get("status", "N/A")
+                message = result.get("statusInfo", {}).get("info", "N/A")
+                severity = result.get("severity", "N/A")
+                category = result.get("category", "N/A")
+                remediation = result.get("remediation", "N/A")
+                namespace = result.get("namespace", "N/A") # Get Namespace
+                name = result.get("name", "N/A") # Get Name
+                rows.append([ control_name, status, message, severity, category, remediation, namespace, name]) # Added namespace and name
+            tables["Results"] = format_markdown_table(headers, rows)
+
+    # 5. Control Reports Table (if available)
+    if "controlReports" in data:
+        control_reports = data["controlReports"]
+        headers = ["Control ID", "Control Name", "Failed Resources", "Total Resources"]
+        rows = []
+        if isinstance(control_reports, list):
+            for report in control_reports:
+                control_id = report.get("controlID", "N/A")
+                control_name = report.get("name", "N/A")
+                failed_resources = report.get("failedResources", "N/A")
+                total_resources = report.get("totalResources", "N/A")
+                rows.append([control_id, control_name, str(failed_resources), str(total_resources)])
+            tables["Control Reports"] = format_markdown_table(headers, rows)
+        elif isinstance(control_reports, dict):
+            for control_id, report_data in control_reports.items():
+                control_name = report_data.get("name", "N/A")
+                failed_resources = report_data.get("failedResources", "N/A")
+                total_resources = report_data.get("totalResources", "N/A")
+                rows.append([control_id, control_name, str(failed_resources), str(total_resources)])
+            tables["Control Reports"] = format_markdown_table(headers, rows)
+
     return tables
 
 def format_markdown_table(headers, rows):
@@ -78,16 +129,16 @@ def format_markdown_table(headers, rows):
     for row in rows:
         table += "| " + " | ".join(row) + " |\n"
     return table
-    
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Usage: python kubescape_to_markdown.py <path_to_results.json>")
         sys.exit(1)
-    
+
     json_file = sys.argv[1]
     markdown_tables = json_to_markdown_table(json_file)
-    
+
     if markdown_tables:
         for table_name, table_content in markdown_tables.items():
             print(f"\n## {table_name}\n")
