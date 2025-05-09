@@ -3,67 +3,76 @@ import sys
 
 def json_to_markdown_table(json_file):
     """
-    Converts Kubescape JSON output to a Markdown table.
+    Converts Kubescape JSON output to multiple Markdown tables.
 
     Args:
         json_file (str): Path to the JSON file.
 
     Returns:
-        str: A Markdown table representation of the JSON data.
-             Returns an empty string if there's an error or no relevant data.
+        dict: A dictionary of Markdown tables, where keys are table names
+              and values are the Markdown table strings.
+              Returns an empty dictionary if there's an error.
     """
     try:
         with open(json_file, 'r') as f:
             data = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError) as e:
         print(f"Error: Could not read or parse JSON file: {e}")
-        return ""
+        return {}
 
-    # Kubescape JSON structure can vary.  We need to find the relevant results.
-    results = None
-    if isinstance(data, dict):
-        if "results" in data:
-            results = data["results"]  #  Handle top-level "results"
-        elif "controls" in data:
-             results = data["controls"] # Handle  "controls"
-        elif "frameworkReport" in data and "results" in data["frameworkReport"]:
-            results = data["frameworkReport"]["results"]
-        elif "frameworkReport" in data and "controlReports" in data["frameworkReport"]:
-            results = data["frameworkReport"]["controlReports"]
-        elif "controlReports" in data:
-            results = data["controlReports"]
-    elif isinstance(data, list):
-        results = data # hope its a list of results
+    # Save the raw JSON data to a file for inspection
+    try:
+        with open("kubescape_output.json", "w") as outfile:
+            json.dump(data, outfile, indent=4)  # Pretty print for readability
+        print("Raw JSON output saved to kubescape_output.json")
+    except Exception as e:
+        print(f"Error saving raw JSON: {e}")
 
-    if not results:
-        print("Error: No results found in JSON data.")
-        return ""
+    tables = {}
 
-    if not isinstance(results, list):
-        print("Error: Results is not a list.")
-        return ""
-        
+    # 1. Summary Details Table
+    if "summaryDetails" in data and "controls" in data["summaryDetails"]:
+        controls = data["summaryDetails"]["controls"]
+        headers = ["Control ID", "Control Name", "Status", "Compliance Score"]
+        rows = []
+        for control_id, control_data in controls.items():
+            control_name = control_data.get("name") or control_data.get("controlName") or control_id or "N/A"
+            status = control_data.get("statusInfo", {}).get("status", "N/A")
+            compliance_score = control_data.get("complianceScore", "N/A")
+            rows.append([control_id, control_name, status, str(compliance_score)])
+        tables["Summary Details"] = format_markdown_table(headers, rows)
 
-    # Extract relevant fields and construct the table.
-    headers = ["Control Name", "Status", "Severity", "Message"]  # Consistent headers
-    rows = []
+    # 2. Resources Table
+    if "resources" in data and isinstance(data["resources"], list):
+        headers = ["Resource ID", "Kind", "Namespace", "Name"]
+        rows = []
+        for resource in data["resources"]:
+            if isinstance(resource, dict) and "object" in resource and isinstance(resource["object"], dict):
+                resource_id = resource.get("resourceID", "N/A")
+                kind = resource["object"].get("kind", "N/A")
+                namespace = resource["object"].get("namespace", "N/A")
+                name = resource["object"].get("name", "N/A")
+                rows.append([resource_id, kind, namespace, name])
+        tables["Resources"] = format_markdown_table(headers, rows)
 
-    for result in results:
-        # Handle different possible structures of the result object
-        control_name = result.get("name") or result.get("controlName") or "N/A"
-        status = result.get("status", "N/A")
-        severity = result.get("severity", "N/A")
-        message = result.get("message", "N/A")
+    # 3.  Frameworks Table
+    if "frameworks" in data and isinstance(data["frameworks"], list):
+        headers = ["Framework Name", "Status", "Compliance Score"]
+        rows = []
+        for framework in data["frameworks"]:
+            if isinstance(framework, dict):
+                name = framework.get("name", "N/A")
+                status = framework.get("status", "N/A")
+                compliance_score = framework.get("complianceScore", "N/A")
+                rows.append([name, status, str(compliance_score)])
+        tables["Frameworks"] = format_markdown_table(headers, rows)
+    
+    return tables
 
-        if isinstance(message, list):
-            message = ", ".join(message)
-
-        rows.append([control_name, status, severity, message])
-
+def format_markdown_table(headers, rows):
+    """Formats a list of headers and rows into a Markdown table."""
     if not rows:
-        return "No relevant data found to create table."
-
-    # Format the Markdown table
+        return "No data found for this table."
     table = "| " + " | ".join(headers) + " |\n"
     table += "| " + " | ".join(["---"] * len(headers)) + " |\n"
     for row in rows:
@@ -77,5 +86,11 @@ if __name__ == "__main__":
         sys.exit(1)
     
     json_file = sys.argv[1]
-    markdown_table = json_to_markdown_table(json_file)
-    print(markdown_table)
+    markdown_tables = json_to_markdown_table(json_file)
+    
+    if markdown_tables:
+        for table_name, table_content in markdown_tables.items():
+            print(f"\n## {table_name}\n")
+            print(table_content)
+    else:
+        print("No tables generated.")
