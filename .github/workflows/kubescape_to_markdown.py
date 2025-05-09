@@ -74,7 +74,7 @@ def json_to_markdown_table(json_file):
         rows = []
         if isinstance(results, list):
             for result in results:
-                # print(f"Debugging result: {result}") #remove
+                # print(f"Debugging result: {result}")
                 if isinstance(result, dict):
                     resource_id = result.get("resourceID", "N/A")
                     controls_data = result.get("controls", [])
@@ -147,29 +147,48 @@ def extract_namespace_name(resource_id):
     parts = resource_id.split('/')
     namespace = "N/A"
     name = "N/A"
-    if len(parts) > 1:
-        # Heuristically find a part that might contain namespace/name
-        for i in range(len(parts) - 1):
-            if parts[i] and parts[i+1]:
-                if parts[i] != "v1": # added this line
-                    namespace = parts[i]
+
+    if "ServiceAccount" in resource_id:
+        for i, part in enumerate(parts):
+            if part == "ServiceAccount":
+                if i + 1 < len(parts):
+                    namespace = parts[i-1]
                     name = parts[i+1]
-                    break
-    elif len(parts) == 1:
-        name = parts[0]
-    return namespace, name
-
-if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python kubescape_to_markdown.py <path_to_results.json>")
-        sys.exit(1)
-
-    json_file = sys.argv[1]
-    markdown_tables = json_to_markdown_table(json_file)
-
-    if markdown_tables:
-        for table_name, table_content in markdown_tables.items():
-            print(f"\n## {table_name}\n")
-            print(table_content)
+                break
+    elif "RoleBinding" in resource_id:
+        for i, part in enumerate(parts):
+            if part == "RoleBinding":
+                name = parts[i+1]
+                namespace = parts[i-1]
+                break
+    elif "Role" in resource_id:
+        for i, part in enumerate(parts):
+            if part == "Role":
+                name = parts[i+1]
+                namespace = parts[i-1]
+                break
+    elif "ConfigMap" in resource_id:
+        for i, part in enumerate(parts):
+            if part == "ConfigMap":
+                name = parts[i+1]
+                namespace = parts[i-1]
+                break
+    elif "Namespace" in resource_id:
+        for i, part in enumerate(parts):
+             if part == "Namespace":
+                name = parts[i+1]
+                namespace = parts[i-1]
+                break
     else:
-        print("No tables generated.")
+        if len(parts) > 1:
+        # Heuristically find a part that might contain namespace/name
+            for i in range(len(parts) - 1):
+                if parts[i] and parts[i+1]:
+                    if parts[i] != "v1": # added this line
+                        namespace = parts[i]
+                        name = parts[i+1]
+                        break
+        elif len(parts) == 1:
+            name = parts[0]
+
+    return namespace, name
