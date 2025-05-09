@@ -70,7 +70,7 @@ jobs:
           json-file: results.json
       
       - name: Upload HTML Table to Artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: output_html 
           path: output.html # The created file's name is output.html. Name cannot be changed
