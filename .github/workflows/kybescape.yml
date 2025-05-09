@@ -1,7 +1,7 @@
 name: Scan Minikube Cluster with Kubescape
 
 on:
-  workflow_dispatch:  # Allows manual triggering of the workflow
+  push:  # Allows manual triggering of the workflow
   
 
 jobs:
@@ -19,7 +19,7 @@ jobs:
           kubernetes-version: 'v1.28.0'
 
       - name: Install kubectl
-        uses: kubernetes-sigs/setup-kubectl@v3
+        uses: medyagh/setup-minikube@latest
         with:
           install-latest: true
 
