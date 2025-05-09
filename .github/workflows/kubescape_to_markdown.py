@@ -70,34 +70,34 @@ def json_to_markdown_table(json_file):
     # 4. Results Table
     if "results" in data:
         results = data["results"]
-        headers = ["Control ID", "Control Name", "Status", "Message", "Severity", "Category", "Remediation", "Namespace", "Name"]
+        headers = ["Resource ID", "Control ID", "Control Name", "Status", "Message", "Severity", "Category", "Remediation", "Namespace", "Name"]
         rows = []
-        if isinstance(results, dict):
-            for control_id, control_data in results.items():
-                control_name = control_data.get("name") or control_data.get("controlName") or control_id or "N/A"
-                status = control_data.get("statusInfo", {}).get("status", "N/A")
-                message = control_data.get("statusInfo", {}).get("info", "N/A")
-                severity = control_data.get("severity", "N/A")
-                category = control_data.get("category", "N/A")
-                remediation = control_data.get("remediation", "N/A")
-                namespace = control_data.get("namespace", "N/A")
-                name = control_data.get("name", "N/A")
-                rows.append([control_id, control_name, status, message, severity, category, remediation, namespace, name])
-            tables["Results"] = format_markdown_table(headers, rows)
-        elif isinstance(results, list):
+        if isinstance(results, list):
             for result in results:
                 # Print the entire result object for debugging
-                print(f"Debugging result: {result}")
-                control_name = result.get("name") or result.get("controlName") or "N/A"
-                status = result.get("statusInfo", {}).get("status", "N/A")
-                message = result.get("statusInfo", {}).get("info", "N/A")
-                severity = result.get("severity", "N/A")
-                category = result.get("category", "N/A")
-                remediation = result.get("remediation", "N/A")
-                namespace = result.get("namespace") if "namespace" in result else "N/A"
-                name = result.get("name") if "name" in result else "N/A"
-                rows.append([control_name, status, message, severity, category, remediation, namespace, name])
-            tables["Results"] = format_markdown_table(headers, rows)
+                #print(f"Debugging result: {result}")
+
+                if isinstance(result, dict):
+                  resource_id = result.get("resourceID", "N/A")
+                  controls_data = result.get("controls", [])
+
+                  for control_data in controls_data:
+                    control_id = control_data.get("controlID", "N/A")
+                    control_name = control_data.get("name") or control_data.get("controlName") or "N/A"
+                    status_info = control_data.get("status", {})
+                    status = status_info.get("status", "N/A")
+                    message = status_info.get("info", "N/A")
+                    severity = result.get("severity", "N/A")
+                    category = result.get("category", "N/A")
+                    remediation = result.get("remediation", "N/A")
+                    namespace = result.get("namespace") if "namespace" in result else "N/A"
+                    name = result.get("name") if "name" in result else "N/A"
+                    rows.append([resource_id, control_id, control_name, status, message, severity, category, remediation, namespace, name])
+                else:
+                    print(f"Unexpected result item type: {type(result)}, skipping")
+        else:
+            print(f"Unexpected results type: {type(results)}, skipping")
+        tables["Results"] = format_markdown_table(headers, rows)
 
     # 5. Control Reports Table (if available)
     if "controlReports" in data:
