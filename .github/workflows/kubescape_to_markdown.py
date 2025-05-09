@@ -43,8 +43,9 @@ resource_blocks = []
 for resource in resources:
     obj = resource.get('object', {})
     kind = obj.get('kind', 'N/A')
-    name = obj.get('name', 'N/A')
-    namespace = obj.get('namespace', 'N/A')
+    metadata = obj.get('metadata', {})
+    name = metadata.get('name', 'N/A')
+    namespace = metadata.get('namespace', 'N/A')
     api_version = obj.get('apiVersion', 'N/A')
 
     # Extracting the controls linked to this resource
