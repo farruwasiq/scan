@@ -1,0 +1,85 @@
+name: Scan Minikube Cluster with Kubescape
+
+on:
+  workflow_dispatch:  # Allows manual triggering of the workflow
+  
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Minikube
+        uses: kubernetes/minikube-action@v3
+        with:
+          version: 'latest'
+          kubernetes-version: 'v1.28.0'
+
+      - name: Install kubectl
+        uses: kubernetes-sigs/setup-kubectl@v3
+        with:
+          install-latest: true
+
+      - name: Check Minikube Status and Kubernetes Version
+        run: |
+          minikube status
+          kubectl version --short
+
+      - name: Install Kubescape
+        run: |
+          curl -s https://raw.githubusercontent.com/armosec/kubescape/master/install.sh | bash -s -- -d ./
+          export PATH=$PATH:$(pwd)
+
+      - name: Run Kubescape Scan
+        run: |
+          kubescape scan --format json --output results.json
+
+      - name: Format Results for Summary
+        id: format_results
+        run: |
+          # Load the JSON results from Kubescape
+          SCAN_RESULTS=$(cat results.json)
+
+          # Check if the results are empty or invalid
+          if [[ -z "$SCAN_RESULTS" || "$SCAN_RESULTS" == "null" || ! echo "$SCAN_RESULTS" | jq -e '. != null' ]]; then
+            echo "::set-output name=table::No issues found or invalid Kubescape output."
+            exit 0
+          fi
+
+          # Extract and format the results using jq
+          TABLE_HEADER="| Control Name | Severity | Status | Failed Resources | |\n|---|---|---|---|---|\n"
+          TABLE_BODY=""
+
+          # Use jq to iterate through the results array.  Handles potential errors.
+          RESULTS=$(echo "$SCAN_RESULTS" | jq -c '.results[]')
+
+          if [[ -z "$RESULTS" || "$RESULTS" == "null" ]]; then
+            echo "::set-output name=table::No specific test results found."
+            exit 0
+          fi
+
+          IFS=$'\n' # Important: Handle newlines in JSON
+
+          for RESULT in $(echo "$RESULTS" | jq -r '.[]'); do
+            CONTROL_NAME=$(echo "$RESULT" | jq -r '.controlName')
+            SEVERITY=$(echo "$RESULT" | jq -r '.severity')
+            STATUS=$(echo "$RESULT" | jq -r '.status')
+            FAILED_RESOURCES=$(echo "$RESULT" | jq -r '.failedResources | length') # Get count
+            TABLE_BODY+="| $CONTROL_NAME | $SEVERITY | $STATUS | $FAILED_RESOURCES |  |\n"
+          done
+          echo "::set-output name=table::$TABLE_HEADER$TABLE_BODY"
+
+      - name: Add Results to Summary
+        if: ${{ steps.format_results.outputs.table != 'No issues found or invalid Kubescape output.' && steps.format_results.outputs.table != 'No specific test results found.' }}
+        run: |
+          echo "## Kubescape Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.format_results.outputs.table }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Add No Issues message to Summary
+        if: ${{ steps.format_results.outputs.table == 'No issues found or invalid Kubescape output.' || steps.format_results.outputs.table == 'No specific test results found.' }}
+        run: |
+          echo "## Kubescape Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "No issues found during the scan, or Kubescape returned no specific test results." >> $GITHUB_STEP_SUMMARY
