@@ -75,24 +75,28 @@ def json_to_markdown_table(json_file):
         if isinstance(results, list):
             for result in results:
                 # Print the entire result object for debugging
-                #print(f"Debugging result: {result}")
+                # print(f"Debugging result: {result}")
 
                 if isinstance(result, dict):
-                  resource_id = result.get("resourceID", "N/A")
-                  controls_data = result.get("controls", [])
+                    resource_id = result.get("resourceID", "N/A")
+                    controls_data = result.get("controls", [])
 
-                  for control_data in controls_data:
-                    control_id = control_data.get("controlID", "N/A")
-                    control_name = control_data.get("name") or control_data.get("controlName") or "N/A"
-                    status_info = control_data.get("status", {})
-                    status = status_info.get("status", "N/A")
-                    message = status_info.get("info", "N/A")
-                    severity = result.get("severity", "N/A")
-                    category = result.get("category", "N/A")
-                    remediation = result.get("remediation", "N/A")
-                    namespace = result.get("namespace") if "namespace" in result else "N/A"
-                    name = result.get("name") if "name" in result else "N/A"
-                    rows.append([resource_id, control_id, control_name, status, message, severity, category, remediation, namespace, name])
+                    # Ensure controls_data is a list before iterating
+                    if isinstance(controls_data, list):
+                        for control_data in controls_data:
+                            control_id = control_data.get("controlID", "N/A")
+                            control_name = control_data.get("name") or control_data.get("controlName") or "N/A"
+                            status_info = control_data.get("status", {})
+                            status = status_info.get("status", "N/A")
+                            message = status_info.get("info", "N/A")
+                            severity = result.get("severity", "N/A")
+                            category = result.get("category", "N/A")
+                            remediation = result.get("remediation", "N/A")
+                            namespace = result.get("namespace") if "namespace" in result else "N/A"
+                            name = result.get("name") if "name" in result else "N/A"
+                            rows.append([resource_id, control_id, control_name, status, message, severity, category, remediation, namespace, name])
+                    else:
+                        print(f"Warning: 'controls' is not a list for resourceID: {resource_id}, skipping")
                 else:
                     print(f"Unexpected result item type: {type(result)}, skipping")
         else:
