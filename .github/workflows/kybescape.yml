@@ -1,9 +1,7 @@
 name: Scan Minikube Cluster with Kubescape
 
 on:
-  workflow_dispatch:  # Allows manual triggering of the workflow
-  schedule:
-    - cron: '0 0 * * 0' # Runs every Sunday at 00:00 UTC
+  push:
 
 jobs:
   scan:
