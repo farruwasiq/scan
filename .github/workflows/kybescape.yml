@@ -13,13 +13,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Minikube
-        uses: kubernetes/minikube-action@v3
+        uses: medyagh/setup-minikube@latest
         with:
           version: 'latest'
           kubernetes-version: 'v1.28.0'
 
       - name: Install kubectl
-        uses: medyagh/setup-minikube@latest
+        uses: kubernetes-sigs/setup-kubectl@v3
         with:
           install-latest: true
 
