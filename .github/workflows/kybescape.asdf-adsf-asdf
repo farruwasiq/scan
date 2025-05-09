@@ -41,25 +41,7 @@ jobs:
       # - name: Convert JSON to HTML Table
       #   id: json_to_html
       #   uses: Teebra/JSON-to-HTML-table@v2.0.0
-      #   with:
-      #     json-file: results.json
-      #     # Optional: You can customize the table styling.
-      #     # style: |
-          #   .table-class {
-          #     border-collapse: collapse;
-          #     width: 100%;
-          #   }
-          #   .table-class th, .table-class td {
-          #     border: 1px solid #ddd;
-          #     padding: 8px;
-          #     text-align: left;
-          #   }
-          #   .table-class th {
-          #     background-color: #f0f0f0;
-          #   }
-          #   .table-class tr:nth-child(even) {
-          #     background-color: #f2f2f2;
-          #   }
+      #   
           
       # - name: Add Results to Summary
       #   run: |
