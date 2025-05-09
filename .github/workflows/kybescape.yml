@@ -1,8 +1,9 @@
 name: Scan Minikube Cluster with Kubescape
 
 on:
-  push:  # Allows manual triggering of the workflow
-  
+  workflow_dispatch:  # Allows manual triggering of the workflow
+  schedule:
+    - cron: '0 0 * * 0' # Runs every Sunday at 00:00 UTC
 
 jobs:
   scan:
@@ -23,19 +24,12 @@ jobs:
         with:
           install-latest: true
 
-      - name: Check Minikube Status and Kubernetes Version
-        run: |
-          minikube status
-          #kubectl version --short
-
       - name: Install Kubescape
         run: |
           curl -s https://raw.githubusercontent.com/armosec/kubescape/master/install.sh | bash -s -- -d ./
           export PATH=$PATH:$(pwd)
           export PATH=$PATH:/home/runner/.kubescape/bin
           kubescape scan framework nsa --format json --output results.json
-
-      
 
       - name: Convert JSON to HTML Table
         id: json_to_html
@@ -67,5 +61,5 @@ jobs:
           if [[ -n "${{ steps.json_to_html.outputs.html }}" ]]; then
             echo "${{ steps.json_to_html.outputs.html }}" >> $GITHUB_STEP_SUMMARY
           else
-            echo "No results to display or error converting to HTML." >> $GITHUB_STEP_SUMMARY
+            echo "No results to display or error converting to HTML.  Check 'results.json'" >> $GITHUB_STEP_SUMMARY
           fi
