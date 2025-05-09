@@ -32,7 +32,8 @@ jobs:
         run: |
           curl -s https://raw.githubusercontent.com/armosec/kubescape/master/install.sh | bash -s -- -d ./
           export PATH=$PATH:$(pwd)
-          kubescape scan framwork nsa --format json --output results.json
+          export PATH=$PATH:/home/runner/.kubescape/bin
+          kubescape scan framework nsa --format json --output results.json
 
       
 
