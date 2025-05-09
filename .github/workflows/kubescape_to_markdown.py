@@ -50,11 +50,19 @@ for resource in resources:
 
     # Extracting the controls linked to this resource
     related_controls = resource.get('controls', [])
-    resource_section = [f"### Resource: {kind} - {name} (Namespace: {namespace})"]
-    resource_section.append(f"ApiVersion: {api_version}")
-    resource_section.append(f"Kind: {kind}")
-    resource_section.append(f"Name: {name}")
-    resource_section.append(f"Namespace: {namespace}\n")
+    failed_controls = sum(1 for ctrl in related_controls if ctrl.get('status', '') == 'failed')
+    action_required = sum(1 for ctrl in related_controls if ctrl.get('status', '') == 'action_required')
+
+    # Resource header
+    resource_section = [
+        f"###############################################",
+        f"ApiVersion: {api_version}",
+        f"Kind: {kind}",
+        f"Name: {name}",
+        f"Namespace: {namespace}",
+        f"Controls: {len(related_controls)} (Failed: {failed_controls}, action required: {action_required})",
+        f""
+    ]
 
     # Add control details
     for ctrl in related_controls:
@@ -63,10 +71,15 @@ for resource in resources:
         docs = ctrl.get('documentation', 'N/A')
         remediation = '\n'.join(ctrl.get('remediation', []))
 
-        resource_section.append(f"Severity: **{severity}**")
+        # Format the severity with color for better visibility
+        severity_display = f"<span style='color: {'red' if severity == 'High' else 'orange' if severity == 'Medium' else 'green'};'>{severity}</span>"
+
+        resource_section.append(f"**Resources**")
+        resource_section.append(f"Severity: {severity_display}")
         resource_section.append(f"Control Name: {control_name}")
         resource_section.append(f"Docs: {docs}")
-        resource_section.append(f"Assisted Remediation:\n{remediation if remediation else 'N/A'}\n")
+        resource_section.append(f"Assisted Remediation:\n{remediation if remediation else 'N/A'}")
+        resource_section.append("")
 
     resource_blocks.append('\n'.join(resource_section))
 
