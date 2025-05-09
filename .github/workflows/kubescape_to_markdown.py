@@ -70,7 +70,7 @@ def json_to_markdown_table(json_file):
     # 4. Results Table
     if "results" in data:
         results = data["results"]
-        headers = ["Control ID", "Control Name", "Status", "Message", "Severity", "Category", "Remediation", "Namespace", "Name"] # Added Namespace and Name
+        headers = ["Control ID", "Control Name", "Status", "Message", "Severity", "Category", "Remediation", "Namespace", "Name"]
         rows = []
         if isinstance(results, dict):
             for control_id, control_data in results.items():
@@ -80,21 +80,21 @@ def json_to_markdown_table(json_file):
                 severity = control_data.get("severity", "N/A")
                 category = control_data.get("category", "N/A")
                 remediation = control_data.get("remediation", "N/A")
-                namespace = control_data.get("namespace", "N/A")  # Get Namespace
-                name = control_data.get("name", "N/A")  # Get Name
-                rows.append([control_id, control_name, status, message, severity, category, remediation, namespace, name]) # Added namespace and name
+                namespace = control_data.get("namespace", "N/A")
+                name = control_data.get("name", "N/A")
+                rows.append([control_id, control_name, status, message, severity, category, remediation, namespace, name])
             tables["Results"] = format_markdown_table(headers, rows)
         elif isinstance(results, list):
             for result in results:
-                control_name = result.get("name") or result.get("controlName") or  "N/A"
+                control_name = result.get("name") or result.get("controlName") or "N/A"
                 status = result.get("statusInfo", {}).get("status", "N/A")
                 message = result.get("statusInfo", {}).get("info", "N/A")
                 severity = result.get("severity", "N/A")
                 category = result.get("category", "N/A")
                 remediation = result.get("remediation", "N/A")
-                namespace = result.get("namespace", "N/A") # Get Namespace
-                name = result.get("name", "N/A") # Get Name
-                rows.append([ control_name, status, message, severity, category, remediation, namespace, name]) # Added namespace and name
+                namespace = result.get("namespace", "N/A")
+                name = result.get("name", "N/A")
+                rows.append([control_name, status, message, severity, category, remediation, namespace, name])
             tables["Results"] = format_markdown_table(headers, rows)
 
     # 5. Control Reports Table (if available)
