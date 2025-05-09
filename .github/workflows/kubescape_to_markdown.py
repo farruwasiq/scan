@@ -74,7 +74,9 @@ def json_to_markdown_table(json_file):
         rows = []
         if isinstance(results, list):
             for result in results:
-                # print(f"Debugging result: {result}") #remove
+                # Print the entire result object for debugging
+                # print(f"Debugging result: {result}")
+
                 if isinstance(result, dict):
                     resource_id = result.get("resourceID", "N/A")
                     controls_data = result.get("controls", [])
@@ -90,8 +92,8 @@ def json_to_markdown_table(json_file):
                             severity = result.get("severity", "N/A")
                             category = result.get("category", "N/A")
                             remediation = result.get("remediation", "N/A")
-                            # Extract namespace and name from the resourceID
-                            namespace, name = extract_namespace_name(resource_id)
+                            namespace = result.get("namespace") if "namespace" in result else "N/A"
+                            name = result.get("name") if "name" in result else "N/A"
                             rows.append([resource_id, control_id, control_name, status, message, severity, category, remediation, namespace, name])
                     else:
                         print(f"Warning: 'controls' is not a list for resourceID: {resource_id}, skipping")
@@ -134,30 +136,6 @@ def format_markdown_table(headers, rows):
         table += "| " + " | ".join(row) + " |\n"
     return table
 
-def extract_namespace_name(resource_id):
-    """
-    Extracts namespace and name from the resource ID.
-
-    Args:
-        resource_id (str): The resource ID string.
-
-    Returns:
-        tuple: (namespace, name).  If extraction fails, returns ("N/A", "N/A").
-    """
-    parts = resource_id.split('/')
-    namespace = "N/A"
-    name = "N/A"
-    if len(parts) > 1:
-        # Heuristically find a part that might contain namespace/name
-        for i in range(len(parts) - 1):
-            if parts[i] and parts[i+1]:
-                if parts[i] != "v1": # added this line
-                    namespace = parts[i]
-                    name = parts[i+1]
-                    break
-    elif len(parts) == 1:
-        name = parts[0]
-    return namespace, name
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
@@ -172,4 +150,4 @@ if __name__ == "__main__":
             print(f"\n## {table_name}\n")
             print(table_content)
     else:
-        print("No tables generated.\")
+        print("No tables generated.")
