@@ -74,8 +74,9 @@ for resource in resources:
             severity = ctrl.get('severity', 'N/A')
             docs = ctrl.get('documentation', 'N/A')
             remediation = '\n'.join(ctrl.get('remediation', []))
+            fix_paths = ctrl.get('fixPath', [])
 
-            # Format the severity with color for better visibility
+            # Format the severity for better visibility
             severity_display = f"**{severity}**"
 
             resource_section.append(f"- **Severity:** {severity_display}")
@@ -83,6 +84,12 @@ for resource in resources:
             resource_section.append(f"- **Docs:** {docs}")
             resource_section.append("- **Assisted Remediation:**")
             resource_section.append(f"```\n{remediation if remediation else 'N/A'}\n```")
+
+            # Add fix path table if available
+            if fix_paths:
+                fix_table = tabulate([[path] for path in fix_paths], headers=["Fix Path"], tablefmt="github")
+                resource_section.append("- **Fix Path:**")
+                resource_section.append(fix_table)
         resource_section.append("")
 
     resource_blocks.append('\n'.join(resource_section))
