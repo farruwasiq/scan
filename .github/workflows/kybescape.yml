@@ -26,7 +26,7 @@ jobs:
       - name: Check Minikube Status and Kubernetes Version
         run: |
           minikube status
-          kubectl version --short
+          #kubectl version --short
 
       - name: Install Kubescape
         run: |
