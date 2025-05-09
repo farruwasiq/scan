@@ -23,12 +23,10 @@ jobs:
 
       - name: Install Kubescape
         run: |
-          curl -s https://raw.githubusercontent.com/armosec/kubescape/master/install.sh | bash -s -- -d ./kubescape
-
-      - name: Run Kubescape Scan
-        id: kubescape-scan
-        run: |
-          ./kubescape scan framework nsa -v --format json --output results.json
+          curl -s https://raw.githubusercontent.com/armosec/kubescape/master/install.sh | bash -s -- -d ./
+          export PATH=$PATH:$(pwd)
+          export PATH=$PATH:/home/runner/.kubescape/bin
+          kubescape scan framework nsa -v --format json --output results.json
 
       - name: Convert Kubescape JSON to Markdown Table (using Python)
         run: |
