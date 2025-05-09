@@ -86,13 +86,14 @@ def json_to_markdown_table(json_file):
             tables["Results"] = format_markdown_table(headers, rows)
         elif isinstance(results, list):
             for result in results:
+                # Print the entire result object for debugging
+                print(f"Debugging result: {result}")
                 control_name = result.get("name") or result.get("controlName") or "N/A"
                 status = result.get("statusInfo", {}).get("status", "N/A")
                 message = result.get("statusInfo", {}).get("info", "N/A")
                 severity = result.get("severity", "N/A")
                 category = result.get("category", "N/A")
                 remediation = result.get("remediation", "N/A")
-                #added this fix.
                 namespace = result.get("namespace") if "namespace" in result else "N/A"
                 name = result.get("name") if "name" in result else "N/A"
                 rows.append([control_name, status, message, severity, category, remediation, namespace, name])
