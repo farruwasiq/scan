@@ -36,21 +36,24 @@ controls_table = tabulate(
     tablefmt="github"
 )
 
-# Extract resource summaries
+# Extract resource summaries with additional details
 resources = data.get('resources', [])
 
 resource_rows = []
 for resource in resources:
+    obj = resource.get('object', {})
     resource_id = resource.get('resourceID', 'N/A')
-    kind = resource.get('object', {}).get('kind', 'N/A')
-    name = resource.get('object', {}).get('name', 'N/A')
-    namespace = resource.get('object', {}).get('namespace', 'N/A')
-    resource_rows.append([resource_id, kind, name, namespace])
+    kind = obj.get('kind', 'N/A')
+    name = obj.get('name', 'N/A')
+    namespace = obj.get('namespace', 'N/A')
+    severity = obj.get('severity', 'N/A')
+    remediation = obj.get('remediation', 'N/A')
+    resource_rows.append([resource_id, kind, name, namespace, severity, remediation])
 
-# Generate the resources table
+# Generate the detailed resources table
 resources_table = tabulate(
     resource_rows,
-    headers=["Resource ID", "Kind", "Name", "Namespace"],
+    headers=["Resource ID", "Kind", "Name", "Namespace", "Severity", "Remediation"],
     tablefmt="github"
 )
 
@@ -58,5 +61,5 @@ resources_table = tabulate(
 print("### Controls Summary")
 print(controls_table)
 print()
-print("### Resources Summary")
+print("### Detailed Resources Summary")
 print(resources_table)
