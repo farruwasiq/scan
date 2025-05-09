@@ -22,12 +22,20 @@ jobs:
         with:
           install-latest: true
 
-      - name: Install Kubescape
-        run: |
-          curl -s https://raw.githubusercontent.com/armosec/kubescape/master/install.sh | bash -s -- -d ./
-          export PATH=$PATH:$(pwd)
-          export PATH=$PATH:/home/runner/.kubescape/bin
-          kubescape scan framework nsa -v --format json --output results.json
+      # - name: Install Kubescape
+      #   run: |
+      #     curl -s https://raw.githubusercontent.com/armosec/kubescape/master/install.sh | bash -s -- -d ./
+      #     export PATH=$PATH:$(pwd)
+      #     export PATH=$PATH:/home/runner/.kubescape/bin
+      #     kubescape scan framework nsa -v --format json --output results.json
+      - name: Install kubescape and scan cluster
+        uses: kubescape/github-action@main
+        continue-on-error: true
+        with:
+          format: json
+          outputFile: results
+          frameworks: |
+            nsa,mitre
 
       # - name: Convert JSON to HTML Table
       #   id: json_to_html
