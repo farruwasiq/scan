@@ -78,7 +78,7 @@ def json_to_markdown_table(json_file):
                 markdown_output += "│" + " " * 21 + f"Control Name : {control['control_name']}" + " " * (84 - len(f"Control Name : {control['control_name']}")) + "│\n"
                 markdown_output += "│" + " " * 21 + f"Docs : {control['docs_link']}" + " " * (84 - len(f"Docs : {control['docs_link']}")) + "│\n"
                 markdown_output += "│" + " " * 21 + "Assisted Remediation : " + (84 - len("Assisted Remediation : ")) + "│\n"
-                remediation_lines = control['remediation'].splitlines()
+                remediation_lines = str(control['remediation']).splitlines() # Convert to string before splitting
                 for line in remediation_lines:
                     markdown_output += "│" + " " * 23 + f"{line}" + " " * (82 - len(f"{line}")) + "│\n"
                 markdown_output += "└" + "─" * 105 + "┘\n"
