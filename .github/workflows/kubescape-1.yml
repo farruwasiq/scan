@@ -43,7 +43,11 @@ jobs:
         if: always()
         run: |
           cat results.md >> $GITHUB_STEP_SUMMARY
+      - name: Upload results.json # Changed from a separate job to a step
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kubescape_JSON_Output
+          path: results.json
     
     
-# Create a folder named "scripts" and add the python script
-# File: scripts/kubescape_to_markdown.py
+
