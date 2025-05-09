@@ -43,10 +43,12 @@ resource_blocks = []
 for resource in resources:
     obj = resource.get('object', {})
     kind = obj.get('kind', 'N/A')
-    metadata = obj.get('metadata', {})
+    api_version = obj.get('apiVersion', 'N/A')
+
+    # Try to extract metadata from common locations
+    metadata = obj.get('metadata', {}) or obj.get('spec', {}).get('template', {}).get('metadata', {})
     name = metadata.get('name', 'N/A')
     namespace = metadata.get('namespace', 'N/A')
-    api_version = obj.get('apiVersion', 'N/A')
 
     # Extracting the controls linked to this resource
     related_controls = resource.get('controls', [])
@@ -56,29 +58,33 @@ for resource in resources:
     # Resource header
     resource_section = [
         f"###############################################",
-        f"ApiVersion: {api_version}",
-        f"Kind: {kind}",
-        f"Name: {name}",
-        f"Namespace: {namespace}",
-        f"Controls: {len(related_controls)} (Failed: {failed_controls}, action required: {action_required})",
+        f"**ApiVersion:** {api_version}",
+        f"**Kind:** {kind}",
+        f"**Name:** {name}",
+        f"**Namespace:** {namespace}",
+        f"**Controls:** {len(related_controls)} (Failed: {failed_controls}, action required: {action_required})",
         f""
     ]
 
     # Add control details
-    for ctrl in related_controls:
-        control_name = ctrl.get('name', 'N/A')
-        severity = ctrl.get('severity', 'N/A')
-        docs = ctrl.get('documentation', 'N/A')
-        remediation = '\n'.join(ctrl.get('remediation', []))
+    if related_controls:
+        resource_section.append("### Resources")
+        for ctrl in related_controls:
+            control_name = ctrl.get('name', 'N/A')
+            severity = ctrl.get('severity', 'N/A')
+            docs = ctrl.get('documentation', 'N/A')
+            remediation = '\n'.join(ctrl.get('remediation', []))
 
-        # Format the severity with color for better visibility
-        severity_display = f"<span style='color: {'red' if severity == 'High' else 'orange' if severity == 'Medium' else 'green'};'>{severity}</span>"
+            # Format the severity with color for better visibility
+            severity_display = f"**{severity}**"
 
-        resource_section.append(f"**Resources**")
-        resource_section.append(f"Severity: {severity_display}")
-        resource_section.append(f"Control Name: {control_name}")
-        resource_section.append(f"Docs: {docs}")
-        resource_section.append(f"Assisted Remediation:\n{remediation if remediation else 'N/A'}")
+            resource_section.append(f"- **Severity:** {severity_display}")
+            resource_section.append(f"- **Control Name:** {control_name}")
+            resource_section.append(f"- **Docs:** {docs}")
+            resource_section.append(f"- **Assisted Remediation:**\n```
+{remediation if remediation else 'N/A'}
+```
+")
         resource_section.append("")
 
     resource_blocks.append('\n'.join(resource_section))
