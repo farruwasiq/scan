@@ -92,8 +92,9 @@ def json_to_markdown_table(json_file):
                 severity = result.get("severity", "N/A")
                 category = result.get("category", "N/A")
                 remediation = result.get("remediation", "N/A")
-                namespace = result.get("namespace", "N/A")
-                name = result.get("name", "N/A")
+                #added this fix.
+                namespace = result.get("namespace") if "namespace" in result else "N/A"
+                name = result.get("name") if "name" in result else "N/A"
                 rows.append([control_name, status, message, severity, category, remediation, namespace, name])
             tables["Results"] = format_markdown_table(headers, rows)
 
