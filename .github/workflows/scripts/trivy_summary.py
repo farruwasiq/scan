@@ -5,28 +5,23 @@ import traceback
 
 def process_trivy_results(trivy_output):
     """
-    Processes the Trivy text output from k8s scan, counts misconfigurations by severity,
-    and formats a summary string in Markdown table format.
+    Processes the Trivy text output from k8s scan and formats it into a detailed Markdown report,
+    similar to the Trivy output with code snippets.
 
     Args:
-        trivy_output (str): The standard output from the Trivy k8s command.
+        trivy_output (str): The standard output from the Trivy k8s --report all command.
 
     Returns:
         tuple: (summary_string, has_issues)
-            summary_string (str): A formatted string with the summary of the scan.
+            summary_string (str): A formatted string with the detailed summary of the scan.
             has_issues (bool): True if any misconfigurations were found, False otherwise.
     """
     summary = ""
     has_issues = False
-    severity_counts = {
-        "CRITICAL": 0,
-        "HIGH": 0,
-        "MEDIUM": 0,
-        "LOW": 0,
-        "UNKNOWN": 0,
-    }
-    resource_counts = {}
-
+    resource_pattern = r"namespace:\s*(.*?),.*?([A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)?):\s*(\d+-\d+)"
+    avd_pattern = r"AVD-KSV-(\d+)\s*\((.*?)\):\s*(.*)"
+    code_snippet_pattern = r"(\s*\d+\s*([│┌└].*))\n"
+    
     print(f"Received Trivy output (length: {len(trivy_output)}):\n{trivy_output}")  # Debug
 
     if not trivy_output:
@@ -35,44 +30,51 @@ def process_trivy_results(trivy_output):
         return summary, False
 
     lines = trivy_output.splitlines()
-    resource_pattern = r"^(.*?)\s+([A-Za-z0-9/-]+)\s+(CRITICAL|HIGH|MEDIUM|LOW|UNKNOWN):\s*(\d+)"
+    current_namespace = ""
+    current_resource = ""
 
-    for line in lines:
-        match = re.search(resource_pattern, line)
-        if match:
-            namespace, resource, severity, count = match.groups()
-            count = int(count)
+    for i, line in enumerate(lines):
+        namespace_match = re.search(r"namespace:\s*(.*?),", line)
+        if namespace_match:
+            current_namespace = namespace_match.group(1)
+
+        resource_match = re.search(r"([A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)?:[0-9-]+)", line)
+        if resource_match:
+            current_resource = resource_match.group(1)
+            
+        avd_match = re.search(avd_pattern, line)
+        if avd_match:
             has_issues = True
-            severity_counts[severity] += count
-            resource_key = f"{namespace.strip()}-{resource.strip()}"
-            if resource_key not in resource_counts:
-                resource_counts[resource_key] = {
-                    "Namespace": namespace.strip(),
-                    "Resource": resource.strip(),
-                    "CRITICAL": 0,
-                    "HIGH": 0,
-                    "MEDIUM": 0,
-                    "LOW": 0,
-                    "UNKNOWN": 0,
-                }
-            resource_counts[resource_key][severity] = count
+            avd_id, severity, title = avd_match.groups()
+            summary += f"### {avd_id} ({severity.upper()}): {title.strip()}\n\n"
 
-    summary += "## Trivy Kubernetes Misconfiguration Scan Summary\n\n"
-    if has_issues:
-        summary += "| Namespace | Resource | CRITICAL | HIGH | MEDIUM | LOW | UNKNOWN |\n"
-        summary += "|-----------|----------|----------|------|--------|-----|---------|\n"
-        for resource_data in resource_counts.values():
-            summary += (
-                f"| {resource_data['Namespace']} | {resource_data['Resource']} | {resource_data['CRITICAL']} | {resource_data['HIGH']} |"
-                f" {resource_data['MEDIUM']} | {resource_data['LOW']} | {resource_data['UNKNOWN']} |\n"
-            )
-        summary += "\n"
-        summary += "| Severity | Count |\n"
-        summary += "|----------|-------|\n"
-        for severity, count in severity_counts.items():
-            summary += f"| {severity} | {count} |\n"
-    else:
-        summary += "No misconfigurations found.\n"
+            description_start = i + 1
+            description_end = i + 1
+            while description_end < len(lines) and not re.match(resource_pattern, lines[description_end]) and not re.match(avd_pattern, lines[description_end]):
+                description_end += 1
+            description = "\n".join(lines[description_start:description_end]).strip()
+            summary += f"{description}\n\n"
+            
+            summary += f"* **Namespace**: {current_namespace}, **Resource**: {current_resource}\n\n"
+
+            code_snippet = ""
+            code_start_line = i + 1
+            while code_start_line < len(lines):
+                code_match = re.search(code_snippet_pattern, lines[code_start_line])
+                if code_match:
+                    code_snippet += code_match.group(1) + "\n"
+                    code_start_line+=1
+                elif re.match(resource_pattern, lines[code_start_line]) or re.match(avd_pattern, lines[code_start_line]):
+                    break
+                else:
+                    code_start_line += 1
+            if code_snippet:
+                summary += "<details><summary>Code Snippet</summary>\n\n```yaml\n"
+                summary += code_snippet.strip()
+                summary += "\n```\n</details>\n\n"
+                
+    if not has_issues:
+        summary = "No misconfigurations found.\n"
 
     print(f"Generated summary:\n{summary}")
     return summary, has_issues
