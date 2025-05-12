@@ -20,12 +20,13 @@ def convert_kubescape_json_to_markdown(json_file):
     except json.JSONDecodeError:
         return f"Error: Invalid JSON format in: {json_file}"
 
-    if not isinstance(data, dict) or 'controls' not in data or not isinstance(data['controls'], list):
+    if not isinstance(data, dict) or 'summaryDetails' not in data or 'controls' not in data['summaryDetails'] or not isinstance(data['summaryDetails']['controls'], dict):
         return "Error: Invalid Kubescape JSON structure."
 
-    controls_data = data['controls']
+    controls_data = data['summaryDetails']['controls']
     output_string = ""
 
+    # Extract summary information (similar to the screenshot)
     if 'apiVersion' in data:
         output_string += f"**ApiVersion:** {data['apiVersion']}\n"
     if 'kind' in data:
@@ -34,32 +35,30 @@ def convert_kubescape_json_to_markdown(json_file):
         output_string += f"**Name:** {data['name']}\n"
     if 'namespace' in data:
         output_string += f"**Namespace:** {data['namespace']}\n"
-    if 'controls' in data:
-        failed_count = sum(1 for control in controls_data if control.get('status', {}).get('status') == 'failed')
-        action_required_count = sum(1 for control in controls_data if control.get('status', {}).get('status') == 'actionRequired')
-        total_controls = len(controls_data)
-        output_string += f"**Controls:** {total_controls} (Failed: {failed_count}, action required: {action_required_count})\n\n"
+
+    # Calculate counts for the Controls summary
+    total_controls = len(controls_data)
+    failed_count = 0
+    action_required_count = 0  # Kubescape JSON doesn't directly provide "actionRequired"
+
+    for control_id, control in controls_data.items():
+        if control.get('statusInfo', {}).get('status') == 'failed':
+            failed_count += 1
+
+    output_string += f"**Controls:** {total_controls} (Failed: {failed_count}, Action Required: N/A)\n\n"  # "Action Required" is not reliably available
 
     output_string += "**Resources**\n\n"
 
     table_data = []
     headers = ["Severity", "Control Name", "Docs", "Assisted Remediation"]
 
-    for control in controls_data:
-        if 'rules' in control and isinstance(control['rules'], list):
-            for rule in control['rules']:
-                severity = rule.get('severity', 'N/A')
-                control_name = rule.get('name', 'N/A')
-                docs_url = rule.get('remediation', 'N/A')
-                assisted_remediation = rule.get('fixPaths', [])
+    for control_id, control in controls_data.items():
+        severity = "N/A"  # Severity is not directly available at this level
+        control_name = control.get('name', 'N/A')
+        docs_url = "N/A"  #  Docs URL is not consistently available
+        assisted_remediation = "N/A" # Assisted Remediation is not consistently available
 
-                remediation_str = ""
-                if assisted_remediation:
-                    remediation_str = "\n".join([f"`{path}`" for path in assisted_remediation])
-                else:
-                    remediation_str = "N/A"
-
-                table_data.append([severity, control_name, docs_url, remediation_str])
+        table_data.append([severity, control_name, docs_url, assisted_remediation])
 
     output_string += tabulate(table_data, headers=headers, tablefmt="grid")
     return output_string
