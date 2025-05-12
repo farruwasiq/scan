@@ -53,7 +53,7 @@ jobs:
       - name: Run Trivy k8s scan
         id: trivy-k8s-scan
         run: |
-          trivy k8s --report all --scanners misconfig > trivy_k8s_output.txt 
+          trivy k8s --report all --scanners misconfig < trivy_k8s_output.txt 
             #echo "TRIVY_OUTPUT=$($(trivy k8s --report summary --scanners misconfig))" >> $GITHUB_ENV # Store output
 
 
