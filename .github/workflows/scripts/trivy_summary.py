@@ -5,8 +5,7 @@ import traceback
 
 def process_trivy_results(trivy_output):
     """
-    Processes the Trivy text output from k8s scan and formats it into a detailed Markdown report,
-    similar to the Trivy output with code snippets.
+    Processes the Trivy text output from k8s scan and formats it into a detailed Markdown report.
 
     Args:
         trivy_output (str): The standard output from the Trivy k8s --report all command.
@@ -18,9 +17,11 @@ def process_trivy_results(trivy_output):
     """
     summary = ""
     has_issues = False
-    resource_pattern = r"namespace:\s*(.*?),.*?([A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)?):\s*(\d+-\d+)"
+    
+    # Improved regex patterns
+    resource_pattern = r"namespace:\s*(.*?),.*?([A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)?)(?:\s+\((.*?)\))?:\s*(\d+-\d+|\d+)"
     avd_pattern = r"AVD-KSV-(\d+)\s*\((.*?)\):\s*(.*)"
-    code_snippet_pattern = r"(\s*\d+\s*([│┌└].*))\n"
+    code_snippet_pattern = r"^\s*(\d+\s*[│┌└]\s*.*)"
     
     print(f"Received Trivy output (length: {len(trivy_output)}):\n{trivy_output}")  # Debug
 
@@ -32,21 +33,31 @@ def process_trivy_results(trivy_output):
     lines = trivy_output.splitlines()
     current_namespace = ""
     current_resource = ""
+    resource_type = "" # Addded resource type
 
     for i, line in enumerate(lines):
         namespace_match = re.search(r"namespace:\s*(.*?),", line)
         if namespace_match:
-            current_namespace = namespace_match.group(1)
+            current_namespace = namespace_match.group(1).strip()
+            print(f"Found namespace: {current_namespace}")  # Debug
 
-        resource_match = re.search(r"([A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)?:[0-9-]+)", line)
+        resource_match = re.search(resource_pattern, line)
         if resource_match:
-            current_resource = resource_match.group(1)
+            current_resource = resource_match.group(2).strip()
+            resource_type = resource_match.group(3).strip() # Capture resource type
+            if resource_type:
+                print(f"Found resource: {current_resource}, type: {resource_type}")
+            else:
+                print(f"Found resource: {current_resource}")
             
         avd_match = re.search(avd_pattern, line)
         if avd_match:
             has_issues = True
             avd_id, severity, title = avd_match.groups()
-            summary += f"### {avd_id} ({severity.upper()}): {title.strip()}\n\n"
+            severity = severity.strip().upper()
+            title = title.strip()
+            print(f"Found AVD: {avd_id}, Severity: {severity}, Title: {title}")  # Debug
+            summary += f"### {avd_id} ({severity}): {title}\n\n"
 
             description_start = i + 1
             description_end = i + 1
@@ -56,6 +67,8 @@ def process_trivy_results(trivy_output):
             summary += f"{description}\n\n"
             
             summary += f"* **Namespace**: {current_namespace}, **Resource**: {current_resource}\n\n"
+            if resource_type:
+                 summary += f"  **Resource Type**: {resource_type}\n\n"
 
             code_snippet = ""
             code_start_line = i + 1
@@ -63,7 +76,7 @@ def process_trivy_results(trivy_output):
                 code_match = re.search(code_snippet_pattern, lines[code_start_line])
                 if code_match:
                     code_snippet += code_match.group(1) + "\n"
-                    code_start_line+=1
+                    code_start_line += 1
                 elif re.match(resource_pattern, lines[code_start_line]) or re.match(avd_pattern, lines[code_start_line]):
                     break
                 else:
@@ -72,9 +85,10 @@ def process_trivy_results(trivy_output):
                 summary += "<details><summary>Code Snippet</summary>\n\n```yaml\n"
                 summary += code_snippet.strip()
                 summary += "\n```\n</details>\n\n"
-                
+
     if not has_issues:
         summary = "No misconfigurations found.\n"
+        print("No issues found")
 
     print(f"Generated summary:\n{summary}")
     return summary, has_issues
