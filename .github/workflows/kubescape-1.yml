@@ -35,6 +35,16 @@ jobs:
             export PATH=$PATH:$(pwd)
             export PATH=$PATH:/home/runner/.kubescape/bin
             kubescape scan framework nsa -v --format json --output results.json
+      
+      - name: Download Trivy binary
+        run: |
+          TRIVY_VERSION="0.49.3" # Replace with your desired version
+          wget "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-x86_64.tar.gz"
+          tar -xvf "trivy_${TRIVY_VERSION}_Linux-x86_64.tar.gz"
+          sudo mv trivy /usr/local/bin/
+          trivy k8s --report all --scanners misconfig
+
+
       - name: Install Python Dependencies
         run: |
           python3 -m pip install --upgrade pip
