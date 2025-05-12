@@ -25,8 +25,12 @@ def process_trivy_results(trivy_output):
         "UNKNOWN": 0,
     }
 
+    print(f"Received Trivy output:\n{trivy_output}") # Debug
+
     if not trivy_output:
-        return "Trivy scan completed. No output from Trivy k8s.", False
+        summary = "Trivy scan completed. No output from Trivy k8s."
+        print(summary)
+        return summary, False
 
     #  Parse the text output.  This is more fragile than JSON, but necessary for trivy k8s
     lines = trivy_output.splitlines()
@@ -64,6 +68,7 @@ def process_trivy_results(trivy_output):
     else:
         summary += "No misconfigurations found.\n"
 
+    print(f"Generated summary:\n{summary}") # Debug
     return summary, has_issues
 
 
@@ -77,9 +82,15 @@ def main(trivy_output):
     """
     summary, has_issues = process_trivy_results(trivy_output)
 
+    print(f"GITHUB_STEP_SUMMARY: {os.environ.get('GITHUB_STEP_SUMMARY')}") # Check env var
+
     if os.environ.get("GITHUB_STEP_SUMMARY") == "true":
-        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
-            print(summary, file=f)  # Print to the summary file
+        try:
+            with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+                print(summary, file=f)  # Print to the summary file
+            print("Successfully wrote to GITHUB_STEP_SUMMARY") # success
+        except Exception as e:
+            print(f"Error writing to GITHUB_STEP_SUMMARY: {e}") #error
     else:
         print(summary)  # Print to standard output
 

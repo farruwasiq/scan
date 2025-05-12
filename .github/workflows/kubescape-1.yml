@@ -54,6 +54,8 @@ jobs:
         id: trivy-k8s-scan
         run: |
           trivy k8s --report summary --scanners misconfig
+            echo "TRIVY_OUTPUT=$($(trivy k8s --report summary --scanners misconfig))" >> $GITHUB_ENV # Store output
+
 
       - name: Post Trivy results summary
         run: python .github/workflows/scripts/trivy_summary.py "${{ steps.trivy-k8s-scan.outputs.stdout }}"
