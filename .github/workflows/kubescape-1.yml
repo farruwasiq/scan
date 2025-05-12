@@ -39,7 +39,7 @@ jobs:
       - name: Download Trivy binary
         run: |
             TRIVY_VERSION="0.49.3" # Replace with your desired version
-            FILENAME="trivy-linux-amd64-${TRIVY_VERSION}.tar.gz"
+            FILENAME="trivy-linux-amd64-${TRIVY_VERSION}.tar.gz" # Adjust if needed after checking releases page
             wget "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/${FILENAME}"
             tar -xvf "${FILENAME}"
             sudo mv trivy /usr/local/bin/
