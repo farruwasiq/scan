@@ -57,9 +57,14 @@ def convert_kubescape_json_to_markdown_with_jq(json_file):
         jq_output, jq_error = process.communicate()
         if jq_error:
             return f"Error running jq: {jq_error}"
+        # Check if jq_output is empty
+        if not jq_output.strip():
+            return "Error: jq produced no output.  Check the input JSON."
         transformed_data = json.loads(jq_output)
     except FileNotFoundError:
         return "Error: jq command not found. Please ensure jq is installed."
+    except json.JSONDecodeError:
+        return f"Error: Invalid JSON output from jq."
     except Exception as e:
         return f"An unexpected error occurred: {e}"
 
