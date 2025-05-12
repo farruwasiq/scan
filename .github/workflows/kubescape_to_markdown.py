@@ -1,52 +1,51 @@
-#!/usr/bin/env python3
-import subprocess
+import json
 import sys
 from tabulate import tabulate
 
-if len(sys.argv) < 2:
-    print("Usage: python kubescape_to_markdown.py <results.json>")
-    sys.exit(1)
+def convert_kubescape_json_to_markdown(json_file_path):
+    """
+    Converts Kubescape JSON output to a Markdown table, focusing on the summary details.
 
-input_file = sys.argv[1]
+    Args:
+        json_file_path (str): Path to the Kubescape JSON output file.
 
-try:
-    # Use jq to extract the needed control information directly
-    jq_query = (
-        ".summaryDetails.controls | to_entries | map({" +
-        "\"severity\": \"Medium\", " +
-        "\"control_name\": (.value.name // \"N/A\"), " +
-        "\"doc_link\": \"https://hub.armosec.io/docs/\" + (.key | ascii_downcase), " +
-        "\"remediation\": (" +
-        "(.value.resourceIDs // {}) | to_entries | " +
-        "map(.value.relatedObjects[]? | " +
-        "(.rules?[]?.resources?[0] // .rules?[]?.verbs?[0] // .rules?[]?.apiGroups?[0] // .roleRef?.name // .subjects?[]?.name) " +
-        ") | join(\"\\n\") // \"No remediation available\") " +
-        "})"
-    )
+    Returns:
+        str: A Markdown table representing the Kubescape summary, or an error message.
+    """
+    try:
+        with open(json_file_path, 'r') as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return f"Error: File not found at {json_file_path}"
+    except json.JSONDecodeError:
+        return f"Error: Invalid JSON in {json_file_path}"
+    except Exception as e:
+        return f"An unexpected error occurred: {e}"
 
-    # Run the jq command to parse and filter the JSON
-    result = subprocess.run(
-        ["jq", "-c", jq_query, input_file],
-        capture_output=True,
-        text=True,
-        check=True
-    )
+    if not data or 'summaryDetails' not in data or 'controls' not in data['summaryDetails']:
+        return "Error: Invalid Kubescape JSON format.  Expected 'summaryDetails' and 'controls' fields."
 
-    # Convert the jq output to a table
-    controls = eval(result.stdout)  # Convert to Python dict
-    headers = ["Severity", "Control Name", "Docs", "Assisted Remediation"]
-    table_data = [[ctrl['severity'], ctrl['control_name'], ctrl['doc_link'], ctrl['remediation']] for ctrl in controls]
+    controls = data['summaryDetails']['controls']
+    table_data = []
+    headers = ["Control Name", "Status", "Compliance Score", "Category"]
 
-    # Print the markdown table
-    markdown_table = tabulate(table_data, headers, tablefmt="github")
-    print(markdown_table)
+    for control_id, control_data in controls.items():
+        status = control_data['statusInfo']['status']
+        compliance_score = control_data.get('complianceScore', 'N/A')  # Handle missing score
+        category = control_data['category']['name']
+        control_name = control_data['name']  # Get the control name
+        table_data.append([control_name, status, compliance_score, category])
 
-except subprocess.CalledProcessError as e:
-    print(f"Error running jq: {e}")
-    sys.exit(1)
-except FileNotFoundError:
-    print(f"Error: File '{input_file}' not found.")
-    sys.exit(1)
-except Exception as e:
-    print(f"Unexpected error: {e}")
-    sys.exit(1)
+    # Sort the table by Control Name
+    table_data.sort(key=lambda x: x[0])
+    markdown_table = tabulate(table_data, headers=headers, tablefmt="github")
+    return markdown_table
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python kubescape_to_markdown.py <path_to_results.json>")
+        sys.exit(1)
+
+    json_file_path = sys.argv[1]
+    markdown_output = convert_kubescape_json_to_markdown(json_file_path)
+    print(markdown_output)
