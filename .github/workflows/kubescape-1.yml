@@ -38,10 +38,12 @@ jobs:
       
       - name: Download Trivy binary
         run: |
-            TRIVY_VERSION="0.49.3" # Replace with your desired version
-            FILENAME="trivy-linux-amd64-${TRIVY_VERSION}.tar.gz" # Adjust if needed after checking releases page
-            wget "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/${FILENAME}"
-            tar -xvf "${FILENAME}"
+            sudo apt-get install wget apt-transport-https gnupg lsb-release
+            wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+            echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+            sudo apt-get update
+            sudo apt-get install trivy
+
             sudo mv trivy /usr/local/bin/
             trivy k8s --report all --scanners misconfig
 
