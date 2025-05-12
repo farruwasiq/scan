@@ -1,14 +1,14 @@
-import json
 import os
 import sys
+import re
 
-def process_trivy_results(report_file="trivy-k8s-report.json"):
+def process_trivy_results(trivy_output):
     """
-    Processes the Trivy JSON report, counts vulnerabilities by severity,
+    Processes the Trivy text output from k8s scan, counts vulnerabilities by severity,
     and formats a summary string.
 
     Args:
-        report_file (str): The path to the Trivy JSON report file.
+        trivy_output (str): The standard output from the Trivy k8s command.
 
     Returns:
         tuple: (summary_string, has_issues)
@@ -25,36 +25,37 @@ def process_trivy_results(report_file="trivy-k8s-report.json"):
         "UNKNOWN": 0,
     }
 
-    try:
-        with open(report_file, "r") as f:
-            report_data = json.load(f)
-    except FileNotFoundError:
-        summary = f"Error: Trivy report file not found at {report_file}.  Trivy may have failed."
-        return summary, True  # Return True to indicate an issue
+    if not trivy_output:
+        return "Trivy scan completed. No output from Trivy k8s.", False
 
-    if not report_data:
-        return "Trivy scan completed. No results to report (empty report).", False
-
-    if not isinstance(report_data, list):
-        summary = "Error: Trivy report data is not a list.  Unexpected format."
-        return summary, True
-
-    for result in report_data:
-        if not isinstance(result, dict):
-            summary = "Error: Result is not a dict. Unexpected format."
-            return summary, True
-        if 'Vulnerabilities' not in result:
-            continue  #  No vulnerabilities in this result
-        if not isinstance(result['Vulnerabilities'], list):
-            summary = "Error: Vulnerabilities is not a list.  Unexpected format"
-            return summary, True
-        for vulnerability in result['Vulnerabilities']:
-            if not isinstance(vulnerability, dict):
-                summary = "Error: vulnerability is not a dict.  Unexpected format"
-                return summary, True
-            severity = vulnerability.get("Severity", "UNKNOWN")
-            severity_counts[severity] = severity_counts.get(severity, 0) + 1
-            has_issues = True
+    #  Parse the text output.  This is more fragile than JSON, but necessary for trivy k8s
+    lines = trivy_output.splitlines()
+    for line in lines:
+        if "CRITICAL" in line:
+            match = re.search(r"CRITICAL:\s*(\d+)", line)
+            if match:
+                severity_counts["CRITICAL"] += int(match.group(1))
+                has_issues = True
+        elif "HIGH" in line:
+            match = re.search(r"HIGH:\s*(\d+)", line)
+            if match:
+                severity_counts["HIGH"] += int(match.group(1))
+                has_issues = True
+        elif "MEDIUM" in line:
+            match = re.search(r"MEDIUM:\s*(\d+)", line)
+            if match:
+                severity_counts["MEDIUM"] += int(match.group(1))
+                has_issues = True
+        elif "LOW" in line:
+            match = re.search(r"LOW:\s*(\d+)", line)
+            if match:
+                severity_counts["LOW"] += int(match.group(1))
+                has_issues = True
+        elif "UNKNOWN" in line:
+            match = re.search(r"UNKNOWN:\s*(\d+)", line)
+            if match:
+                severity_counts["UNKNOWN"] += int(match.group(1))
+                has_issues = True
 
     summary += "Trivy Kubernetes Misconfiguration Scan Summary:\n"
     if has_issues:
@@ -66,11 +67,15 @@ def process_trivy_results(report_file="trivy-k8s-report.json"):
     return summary, has_issues
 
 
-def main():
+
+def main(trivy_output):
     """
     Main function to process Trivy results and output a summary for GitHub Actions.
+
+    Args:
+        trivy_output (str): The standard output from the Trivy k8s command (passed as a command-line argument).
     """
-    summary, has_issues = process_trivy_results()
+    summary, has_issues = process_trivy_results(trivy_output)
 
     if os.environ.get("GITHUB_STEP_SUMMARY") == "true":
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
@@ -80,9 +85,13 @@ def main():
 
     if has_issues:
         print("::warning title=Trivy Scan Issues::Misconfigurations were found. Check the scan results for details.")
-        #  Don't fail the action here.  We use continue-on-error
-        #sys.exit(1) #  Remove this.  Let the workflow complete.
+
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 1:
+        trivy_output = sys.argv[1]
+        main(trivy_output)
+    else:
+        print("Error: Trivy output is missing.")
+        sys.exit(1)

@@ -51,12 +51,12 @@ jobs:
           sudo apt-get install -y trivy
 
       - name: Run Trivy k8s scan
+        id: trivy-k8s-scan
         run: |
-          trivy k8s --report json --output trivy-k8s-report.json --scanners misconfig
-        continue-on-error: true # important.  Don't fail for trivy issues.
+          trivy k8s --report summary --scanners misconfig
 
       - name: Post Trivy results summary
-        run: python .github/workflows/scripts/trivy_summary.py
+        run: python .github/scripts/trivy_summary.py "${{ steps.trivy-k8s-scan.outputs.stdout }}"
         env:
           GITHUB_STEP_SUMMARY: true
 
