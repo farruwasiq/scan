@@ -26,7 +26,11 @@ jobs:
           curl -s https://raw.githubusercontent.com/armosec/kubescape/master/install.sh | bash -s -- -d ./
           export PATH=$PATH:$(pwd)
           export PATH=$PATH:/home/runner/.kubescape/bin
-          kubescape scan framework nsa -v --format json --output results.json
+          
+      
+      - name: kubescape framwork verbose output 
+        run: |
+            kubescape scan framework nsa -v --format json --output results.json
       - name: Install Python Dependencies
         run: |
           python3 -m pip install --upgrade pip
