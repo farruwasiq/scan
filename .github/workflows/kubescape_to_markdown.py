@@ -47,7 +47,9 @@ def convert_kubescape_json_to_markdown(json_file):
 
     output_string += f"**Controls:** {total_controls} (Failed: {failed_count}, Action Required: N/A)\n\n"
 
-    output_string += "**Resources**\n\n"
+    output_string += "**Resources (Summary with Potential Data Gaps)**\n\n"
+    output_string += "  **Note:** Rule-level details (Severity, Docs, Assisted Remediation) may be incomplete or inaccurate in this summary table. For detailed findings, refer to the 'resourceResults' section of the JSON or consider using a resource-centric report.\n\n"
+
 
     table_data = []
     headers = ["Severity", "Control Name", "Docs", "Assisted Remediation"]
@@ -62,12 +64,22 @@ def convert_kubescape_json_to_markdown(json_file):
                     if control_id:
                         # Store details, potentially overwriting if the same ID appears multiple times
                         if 'rules' in resource_control and isinstance(resource_control['rules'], list) and resource_control['rules']: #Check if rules exist
-                            first_rule = resource_control['rules'][0] # Take the first rule
+                            # Concatenate details from all rules for the same control ID
+                            severity_list = []
+                            docs_list = []
+                            assisted_remediation_list = []
+                            for rule in resource_control['rules']:
+                                severity_list.append(rule.get('severity', 'N/A'))
+                                docs_list.append(rule.get('remediation', 'N/A'))
+                                assisted_remediation_list.extend(rule.get('fixPaths', []))
+
+                            # Join the lists with newlines if there are multiple values
                             control_details_map[control_id] = {
-                                'severity': first_rule.get('severity', 'N/A'),
-                                'docs': first_rule.get('remediation', 'N/A'),
-                                'assisted_remediation': "\n".join([f"`{path}`" for path in first_rule.get('fixPaths', [])]) if first_rule.get('fixPaths') else "N/A"
+                                'severity': "\n".join(severity_list) or 'N/A',
+                                'docs': "\n".join(docs_list) or 'N/A',
+                                'assisted_remediation': "\n".join([f"`{path}`" for path in assisted_remediation_list]) or 'N/A'
                             }
+
 
     for control_id, control in controls_data.items():
         severity = "N/A"
