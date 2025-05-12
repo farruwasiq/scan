@@ -54,17 +54,19 @@ jobs:
         id: trivy-k8s-scan
         run: |
           trivy k8s --report all --scanners misconfig > trivy_k8s_output.txt
+          echo "TRIVY_OUTPUT_PATH=$GITHUB_WORKSPACE/trivy_k8s_output.txt" >> $GITHUB_ENV # Store path
 
       - name: Post Trivy results summary
         if: always()
         run: |
-          if [ -s "trivy_k8s_output.txt" ]; then
-            python .github/workflows/scripts/trivy_summary.py < trivy_k8s_output.txt
+          if [ -s "$GITHUB_WORKSPACE/trivy_k8s_output.txt" ]; then
+            python .github/workflows/scripts/trivy_summary.py < "$GITHUB_WORKSPACE/trivy_k8s_output.txt"
           else
             echo "No Trivy output file found or file is empty."
           fi
         env:
           GITHUB_STEP_SUMMARY: ${{ github.step_summary }}
+
 
 
     #   - name: Install Python Dependencies
