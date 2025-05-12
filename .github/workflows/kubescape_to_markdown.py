@@ -1,134 +1,50 @@
-import json
+#!/usr/bin/env python3
 import subprocess
-from tabulate import tabulate
 import sys
+from tabulate import tabulate
 
-def convert_kubescape_json_to_markdown(json_file):
-    """
-    Reads a Kubescape JSON output file, uses jq to transform it,
-    and converts it into a Markdown table. Handles variations in JSON structure.
+if len(sys.argv) < 2:
+    print("Usage: python kubescape_to_markdown.py <results.json>")
+    sys.exit(1)
 
-    Args:
-        json_file (str): The path to the Kubescape JSON file.
+input_file = sys.argv[1]
 
-    Returns:
-        str: A Markdown formatted table of the Kubescape scan results.
-    """
-    try:
-        with open(json_file, 'r') as f:
-            data = json.load(f)
-    except FileNotFoundError:
-        return f"Error: File not found: {json_file}"
-    except json.JSONDecodeError:
-        return f"Error: Invalid JSON format in: {json_file}"
+try:
+    # Use jq to extract the needed control information directly
+    jq_query = (
+        '.summaryDetails.controls | to_entries | map({
+            severity: "Medium",
+            control_name: .value.name,
+            doc_link: "https://hub.armosec.io/docs/" + .key | ascii_downcase,
+            remediation: (.value.resourceIDs | to_entries | map(
+                .value.relatedObjects[] | (.rules?[]?.resources?[0] // .rules?[]?.verbs?[0] // .rules?[]?.apiGroups?[0] // .roleRef?.name // .subjects?[]?.name)
+            ) | join("\n"))
+        })'
+    )
 
-    output_string = ""
+    # Run the jq command to parse and filter the JSON
+    result = subprocess.run(
+        ["jq", "-r", jq_query, input_file],
+        capture_output=True,
+        text=True,
+        check=True
+    )
 
-    # Extract basic metadata (always try to get this)
-    if 'apiVersion' in data:
-        output_string += f"**ApiVersion:** {data['apiVersion']}\n"
-    if 'kind' in data:
-        output_string += f"**Kind:** {data['kind']}\n"
-    if 'name' in data:
-        output_string += f"**Name:** {data['name']}\n"
-    if 'namespace' in data:
-        output_string += f"**Namespace:** {data['namespace']}\n"
+    # Convert the jq output to a table
+    controls = eval(result.stdout)  # Convert to Python dict
+    headers = ["Severity", "Control Name", "Docs", "Assisted Remediation"]
+    table_data = [[ctrl['severity'], ctrl['control_name'], ctrl['doc_link'], ctrl['remediation']] for ctrl in controls]
 
-    # Handle resourceResults (if present)
-    if 'resourceResults' in data and data['resourceResults'] is not None:
-        jq_script_resource_centric = """
-        {
-          resources: (.resourceResults[] | {
-            resourceID: .resourceID,
-            controls: (.controls[] | {
-              controlName: .name,
-              controlId: .controlID,
-              severity: (.rules[0].severity // "N/A"),
-              docs: (.rules[0].remediation // "N/A"),
-              assistedRemediation: (.rules[0].fixPaths | join("\\n") // "N/A")
-            })
-          })
-        }
-        """
-        try:
-            process = subprocess.Popen(
-                ['jq', '-r', jq_script_resource_centric, json_file],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-            jq_output, jq_error = process.communicate()
-            if jq_error:
-                return f"Error running jq (resource-centric): {jq_error}"
-            if not jq_output.strip():
-                return "Error: jq produced no output (resource-centric). Check the input JSON."
-            transformed_data = json.loads(jq_output)
+    # Print the markdown table
+    markdown_table = tabulate(table_data, headers, tablefmt="github")
+    print(markdown_table)
 
-            output_string += "**Resource Scan Results**\n\n"
-            for resource in transformed_data['resources']:
-                output_string += f"**Resource ID:** {resource['resourceID']}\n\n"
-                table_data = []
-                headers = ["Severity", "Control Name", "Docs", "Assisted Remediation"]
-                for control in resource['controls']:
-                    table_data.append([
-                        control['severity'],
-                        control['controlName'],
-                        control['docs'],
-                        control['assistedRemediation']
-                    ])
-                output_string += tabulate(table_data, headers=headers, tablefmt="grid") + "\n\n"
-
-        except Exception as e:
-            return f"An unexpected error occurred during resource-centric processing: {e}"
-
-    else:  # Handle cases where resourceResults is missing
-        jq_script_summary_only = """
-        {
-          controlsSummary: {
-            total: .summaryDetails.controls | length,
-            failed: (.summaryDetails.controls | map(select(.statusInfo.status == "failed")) | length),
-            actionRequired: (.summaryDetails.controls | map(select(.statusInfo.status == "actionRequired")) | length)
-          },
-          controls: [.summaryDetails.controls[] | {
-            controlName: .name,
-            controlId: .controlID
-          }]
-        }
-        """
-        try:
-            process = subprocess.Popen(
-                ['jq', '-r', jq_script_summary_only, json_file],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-            jq_output, jq_error = process.communicate()
-            if jq_error:
-                return f"Error running jq (summary-only): {jq_error}"
-            if not jq_output.strip():
-                return "Error: jq produced no output (summary-only). Check the input JSON."
-            transformed_data = json.loads(jq_output)
-
-            if 'controlsSummary' in transformed_data:
-                output_string += f"**Controls Summary:** {transformed_data['controlsSummary']['total']} (Failed: {transformed_data['controlsSummary']['failed']}, Action Required: {transformed_data['controlsSummary']['actionRequired']})\n\n"
-
-            output_string += "**Controls**\n\n"
-            table_data = []
-            headers = ["Control Name"]
-            for control in transformed_data['controls']:
-                table_data.append([control['controlName']])
-            output_string += tabulate(table_data, headers=headers, tablefmt="grid")
-
-        except Exception as e:
-            return f"An unexpected error occurred during summary-only processing: {e}"
-
-    return output_string
-
-if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python kubescape_to_markdown.py <path_to_results.json>")
-        sys.exit(1)
-
-    json_file_path = sys.argv[1]
-    markdown_output = convert_kubescape_json_to_markdown(json_file_path)
-    print(markdown_output)
+except subprocess.CalledProcessError as e:
+    print(f"Error running jq: {e}")
+    sys.exit(1)
+except FileNotFoundError:
+    print(f"Error: File '{input_file}' not found.")
+    sys.exit(1)
+except Exception as e:
+    print(f"Unexpected error: {e}")
+    sys.exit(1)
