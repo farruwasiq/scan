@@ -2,109 +2,73 @@ import json
 from tabulate import tabulate
 import sys
 
-# Load the JSON file passed as an argument
-if len(sys.argv) < 2:
-    print("Usage: python kubescape_to_markdown.py <results.json>")
-    sys.exit(1)
+def convert_kubescape_json_to_markdown(json_file):
+    """
+    Reads a Kubescape JSON output file and converts it into a Markdown table.
 
-json_file = sys.argv[1]
+    Args:
+        json_file (str): The path to the Kubescape JSON file.
 
-with open(json_file, 'r') as file:
-    data = json.load(file)
+    Returns:
+        str: A Markdown formatted table of the Kubescape scan results.
+    """
+    try:
+        with open(json_file, 'r') as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return f"Error: File not found: {json_file}"
+    except json.JSONDecodeError:
+        return f"Error: Invalid JSON format in: {json_file}"
 
-# Extract control summaries
-controls = data.get('summaryDetails', {}).get('controls', {})
+    if not isinstance(data, dict) or 'controls' not in data or not isinstance(data['controls'], list):
+        return "Error: Invalid Kubescape JSON structure."
 
-control_rows = []
-for control_id, control in controls.items():
-    control_rows.append([
-        control_id,
-        control.get('name', 'N/A'),
-        control.get('status', 'N/A'),
-        control.get('score', 'N/A'),
-        control.get('complianceScore', 'N/A'),
-        control.get('ResourceCounters', {}).get('passedResources', 0),
-        control.get('ResourceCounters', {}).get('failedResources', 0),
-        control.get('ResourceCounters', {}).get('skippedResources', 0),
-        control.get('ResourceCounters', {}).get('excludedResources', 0),
-    ])
+    controls_data = data['controls']
+    output_string = ""
 
-# Generate the controls table
-controls_table = tabulate(
-    control_rows,
-    headers=["Control ID", "Name", "Status", "Score", "Compliance Score", "Passed", "Failed", "Skipped", "Excluded"],
-    tablefmt="github"
-)
+    if 'apiVersion' in data:
+        output_string += f"**ApiVersion:** {data['apiVersion']}\n"
+    if 'kind' in data:
+        output_string += f"**Kind:** {data['kind']}\n"
+    if 'name' in data:
+        output_string += f"**Name:** {data['name']}\n"
+    if 'namespace' in data:
+        output_string += f"**Namespace:** {data['namespace']}\n"
+    if 'controls' in data:
+        failed_count = sum(1 for control in controls_data if control.get('status', {}).get('status') == 'failed')
+        action_required_count = sum(1 for control in controls_data if control.get('status', {}).get('status') == 'actionRequired')
+        total_controls = len(controls_data)
+        output_string += f"**Controls:** {total_controls} (Failed: {failed_count}, action required: {action_required_count})\n\n"
 
-# Extract detailed resource summaries
-resources = data.get('resources', [])
+    output_string += "**Resources**\n\n"
 
-resource_blocks = []
-for resource in resources:
-    obj = resource.get('object', {})
-    kind = obj.get('kind', 'N/A')
-    api_version = obj.get('apiVersion', 'N/A')
+    table_data = []
+    headers = ["Severity", "Control Name", "Docs", "Assisted Remediation"]
 
-    # Try to extract metadata from common locations
-    metadata = obj.get('metadata', {}) or obj.get('spec', {}).get('template', {}).get('metadata', {})
-    name = metadata.get('name', 'N/A')
-    namespace = metadata.get('namespace', 'N/A')
+    for control in controls_data:
+        if 'rules' in control and isinstance(control['rules'], list):
+            for rule in control['rules']:
+                severity = rule.get('severity', 'N/A')
+                control_name = rule.get('name', 'N/A')
+                docs_url = rule.get('remediation', 'N/A')
+                assisted_remediation = rule.get('fixPaths', [])
 
-    # Extracting the controls linked to this resource
-    related_controls = resource.get('controls', [])
-    failed_controls = sum(1 for ctrl in related_controls if ctrl.get('status', '') == 'failed')
-    action_required = sum(1 for ctrl in related_controls if ctrl.get('status', '') == 'action_required')
+                remediation_str = ""
+                if assisted_remediation:
+                    remediation_str = "\n".join([f"`{path}`" for path in assisted_remediation])
+                else:
+                    remediation_str = "N/A"
 
-    # Resource header
-    resource_section = [
-        f"###############################################",
-        f"**ApiVersion:** {api_version}",
-        f"**Kind:** {kind}",
-        f"**Name:** {name}",
-        f"**Namespace:** {namespace}",
-        f"**Controls:** {len(related_controls)} (Failed: {failed_controls}, action required: {action_required})",
-        ""
-    ]
+                table_data.append([severity, control_name, docs_url, remediation_str])
 
-    # Add control details
-    if related_controls:
-        resource_section.append("### Resources")
-        for ctrl in related_controls:
-            control_name = ctrl.get('name', 'N/A')
-            severity = ctrl.get('severity', 'N/A')
-            docs = ctrl.get('documentation', 'N/A')
-            remediation = '\n'.join(ctrl.get('remediation', []))
-            fix_paths = ctrl.get('fixPath', [])
+    output_string += tabulate(table_data, headers=headers, tablefmt="grid")
+    return output_string
 
-            # Format the severity for better visibility
-            severity_display = f"**{severity}**"
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python kubescape_to_markdown.py <path_to_results.json>")
+        sys.exit(1)
 
-            resource_section.append(f"- **Severity:** {severity_display}")
-            resource_section.append(f"- **Control Name:** {control_name}")
-            resource_section.append(f"- **Docs:** {docs}")
-            resource_section.append("- **Assisted Remediation:**")
-            resource_section.append(f"```\n{remediation if remediation else 'N/A'}\n```")
-
-            # Add fix path table if available
-            if fix_paths:
-                fix_table = tabulate([[path] for path in fix_paths], headers=["Fix Path"], tablefmt="github")
-                resource_section.append("- **Fix Path:**")
-                resource_section.append(fix_table)
-
-            # Also include detailed file paths if present
-            if 'files' in ctrl:
-                file_paths = [f.get('filePath', 'N/A') for f in ctrl['files']]
-                file_table = tabulate([[f] for f in file_paths], headers=["File Path"], tablefmt="github")
-                resource_section.append("- **Vulnerable Files:**")
-                resource_section.append(file_table)
-
-        resource_section.append("")
-
-    resource_blocks.append('\n'.join(resource_section))
-
-# Combine all sections
-print("### Controls Summary")
-print(controls_table)
-print()
-print("### Detailed Resources Summary")
-print('\n\n'.join(resource_blocks))
+    json_file_path = sys.argv[1]
+    markdown_output = convert_kubescape_json_to_markdown(json_file_path)
+    print(markdown_output)
