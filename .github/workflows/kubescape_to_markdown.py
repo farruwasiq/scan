@@ -38,7 +38,7 @@ def convert_kubescape_json_to_markdown_with_jq(json_file):
         controlName: .name,
         controlId: .controlID
       }],
-      resourceControls: (.resourceResults[] | .controls[] | {
+      resourceControls: (.resourceResults // [] | .[] | .controls // [] | .[] | {  # Handle null resourceResults and controls
           controlId: .controlID,
           severity: (.rules[0].severity // "N/A"),
           docs: (.rules[0].remediation // "N/A"),
