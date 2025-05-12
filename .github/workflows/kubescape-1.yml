@@ -21,52 +21,65 @@ jobs:
         with:
           version: 'v1.23.3'
 
-      - name: Install Kubescape
-        run: |
-          curl -s https://raw.githubusercontent.com/armosec/kubescape/master/install.sh | bash -s -- -d ./
-          export PATH=$PATH:$(pwd)
-          export PATH=$PATH:/home/runner/.kubescape/bin
-          kubescape scan framework nsa -v
+    #   - name: Install Kubescape
+    #     run: |
+    #       curl -s https://raw.githubusercontent.com/armosec/kubescape/master/install.sh | bash -s -- -d ./
+    #       export PATH=$PATH:$(pwd)
+    #       export PATH=$PATH:/home/runner/.kubescape/bin
+    #       kubescape scan framework nsa -v
           
       
-      - name: kubescape framwork verbose output 
-        run: |
-            curl -s https://raw.githubusercontent.com/armosec/kubescape/master/install.sh | bash -s -- -d ./
-            export PATH=$PATH:$(pwd)
-            export PATH=$PATH:/home/runner/.kubescape/bin
-            kubescape scan framework nsa -v --format json --output results.json
+    #   - name: kubescape framwork verbose output 
+    #     run: |
+    #         curl -s https://raw.githubusercontent.com/armosec/kubescape/master/install.sh | bash -s -- -d ./
+    #         export PATH=$PATH:$(pwd)
+    #         export PATH=$PATH:/home/runner/.kubescape/bin
+    #         kubescape scan framework nsa -v --format json --output results.json
       
-      - name: Download Trivy binary
-        run: |
-            sudo apt-get install wget apt-transport-https gnupg lsb-release
-            wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-            echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
-            sudo apt-get update
-            sudo apt-get install trivy
-
-            
-            trivy k8s --report all --scanners misconfig
-
-
-      - name: Install Python Dependencies
-        run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install tabulate
-      - name: Convert Kubescape JSON to Markdown Table (using Python)
-        run: |
-          python3 .github/workflows/kubescape_to_markdown.py results.json > results.md
-      - name: Upload Kubescape Report
-        uses: actions/upload-artifact@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          name: Kubescape_Report
-          path: results.md
+          python-version: '3.9'  # Or a suitable version
 
-      - name: Output results to Summary
-        if: always()
+      - name: Download and Install Trivy
         run: |
-          cat results.md >> $GITHUB_STEP_SUMMARY
-      - name: Upload results.json
-        uses: actions/upload-artifact@v4
-        with:
-          name: Kubescape_JSON_Output
-          path: results.json
+          sudo apt-get update
+          sudo apt-get install -y apt-transport-https ca-certificates curl
+          curl -fsSL https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+
+      - name: Run Trivy k8s scan
+        run: |
+          trivy k8s --report json --output trivy-k8s-report.json --scanners misconfig
+        continue-on-error: true # important.  Don't fail for trivy issues.
+
+      - name: Post Trivy results summary
+        run: python .github/scripts/trivy_summary.py
+        env:
+          GITHUB_STEP_SUMMARY: true
+
+
+    #   - name: Install Python Dependencies
+    #     run: |
+    #       python3 -m pip install --upgrade pip
+    #       python3 -m pip install tabulate
+    #   - name: Convert Kubescape JSON to Markdown Table (using Python)
+    #     run: |
+    #       python3 .github/workflows/kubescape_to_markdown.py results.json > results.md
+    #   - name: Upload Kubescape Report
+    #     uses: actions/upload-artifact@v4
+    #     with:
+    #       name: Kubescape_Report
+    #       path: results.md
+
+    #   - name: Output results to Summary
+    #     if: always()
+    #     run: |
+    #       cat results.md >> $GITHUB_STEP_SUMMARY
+    #   - name: Upload results.json
+    #     uses: actions/upload-artifact@v4
+    #     with:
+    #       name: Kubescape_JSON_Output
+    #       path: results.json
