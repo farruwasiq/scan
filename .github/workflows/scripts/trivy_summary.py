@@ -95,7 +95,7 @@ def process_trivy_results(trivy_output):
 
 
 
-def main(trivy_output):
+def main():
     """
     Main function to process Trivy results and output a summary for GitHub Actions.
 
@@ -103,6 +103,7 @@ def main(trivy_output):
         trivy_output (str): The standard output from the Trivy k8s command (passed as a command-line argument).
     """
     print(f"Python script started. GITHUB_STEP_SUMMARY: {os.environ.get('GITHUB_STEP_SUMMARY')}")  # Debug
+    trivy_output = sys.stdin.read() # Read from stdin
 
     summary, has_issues = process_trivy_results(trivy_output)
 
@@ -125,9 +126,4 @@ def main(trivy_output):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        trivy_output = sys.argv[1]
-        main(trivy_output)
-    else:
-        print("Error: Trivy output is missing.")
-        sys.exit(1)
+    main()
