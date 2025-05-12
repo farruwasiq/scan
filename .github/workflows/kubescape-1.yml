@@ -53,14 +53,14 @@ jobs:
       - name: Run Trivy k8s scan
         id: trivy-k8s-scan
         run: |
-          trivy k8s --report summary --scanners misconfig
-            echo "TRIVY_OUTPUT=$($(trivy k8s --report summary --scanners misconfig))" >> $GITHUB_ENV # Store output
+          trivy k8s --report summary --scanners misconfig > trivy_k8s_output.txt 
+            #echo "TRIVY_OUTPUT=$($(trivy k8s --report summary --scanners misconfig))" >> $GITHUB_ENV # Store output
 
 
       - name: Post Trivy results summary
-        run: python .github/workflows/scripts/trivy_summary.py "${{ steps.trivy-k8s-scan.outputs.stdout }}"
+        run: python .github/workflows/scripts/trivy_summary.py "$(cat trivy_k8s_output.txt)"
         env:
-          GITHUB_STEP_SUMMARY: true
+            GITHUB_STEP_SUMMARY: ${{ github.step_summary }}
 
 
     #   - name: Install Python Dependencies
