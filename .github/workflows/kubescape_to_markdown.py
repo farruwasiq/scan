@@ -26,7 +26,7 @@ def convert_kubescape_json_to_markdown(json_file):
     controls_data = data['summaryDetails']['controls']
     output_string = ""
 
-    # Extract summary information (similar to the screenshot)
+    # Extract summary information
     if 'apiVersion' in data:
         output_string += f"**ApiVersion:** {data['apiVersion']}\n"
     if 'kind' in data:
@@ -39,13 +39,13 @@ def convert_kubescape_json_to_markdown(json_file):
     # Calculate counts for the Controls summary
     total_controls = len(controls_data)
     failed_count = 0
-    action_required_count = 0  # Kubescape JSON doesn't directly provide "actionRequired"
+    action_required_count = 0
 
     for control_id, control in controls_data.items():
         if control.get('statusInfo', {}).get('status') == 'failed':
             failed_count += 1
 
-    output_string += f"**Controls:** {total_controls} (Failed: {failed_count}, Action Required: N/A)\n\n"  # "Action Required" is not reliably available
+    output_string += f"**Controls:** {total_controls} (Failed: {failed_count}, Action Required: N/A)\n\n"
 
     output_string += "**Resources**\n\n"
 
@@ -53,10 +53,28 @@ def convert_kubescape_json_to_markdown(json_file):
     headers = ["Severity", "Control Name", "Docs", "Assisted Remediation"]
 
     for control_id, control in controls_data.items():
-        severity = "N/A"  # Severity is not directly available at this level
+        severity = "N/A"
         control_name = control.get('name', 'N/A')
-        docs_url = "N/A"  #  Docs URL is not consistently available
-        assisted_remediation = "N/A" # Assisted Remediation is not consistently available
+        docs_url = "N/A"
+        assisted_remediation = "N/A"
+
+        # Attempt to get more details from resourceResults (if available)
+        if 'resourceResults' in data and isinstance(data['resourceResults'], list):
+            for resource_result in data['resourceResults']:
+                if 'controls' in resource_result and isinstance(resource_result['controls'], list):
+                    for resource_control in resource_result['controls']:
+                        if resource_control.get('controlID') == control_id:
+                            if 'rules' in resource_control and isinstance(resource_control['rules'], list):
+                                # For simplicity, take the first rule's data if multiple rules exist
+                                first_rule = resource_control['rules'][0]
+                                severity = first_rule.get('severity', 'N/A')
+                                docs_url = first_rule.get('remediation', 'N/A')
+                                assisted_remediation_list = first_rule.get('fixPaths', [])
+                                assisted_remediation = "\n".join([f"`{path}`" for path in assisted_remediation_list]) if assisted_remediation_list else "N/A"
+                            break  # Stop searching within resourceResults once we find a match
+                    else:
+                        continue # Continue outer loop if inner loop wasn't broken
+                    break # Stop searching resourceResults
 
         table_data.append([severity, control_name, docs_url, assisted_remediation])
 
