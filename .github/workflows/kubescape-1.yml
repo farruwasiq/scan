@@ -56,7 +56,7 @@ jobs:
           trivy k8s --report summary --scanners misconfig
 
       - name: Post Trivy results summary
-        run: python .github/scripts/workflows/trivy_summary.py "${{ steps.trivy-k8s-scan.outputs.stdout }}"
+        run: python .githu/workflows/scripts/rivy_summary.py "${{ steps.trivy-k8s-scan.outputs.stdout }}"
         env:
           GITHUB_STEP_SUMMARY: true
 
