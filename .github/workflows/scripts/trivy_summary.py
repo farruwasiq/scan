@@ -1,6 +1,7 @@
 import os
 import sys
 import re
+import traceback
 
 def process_trivy_results(trivy_output):
     """
@@ -25,14 +26,14 @@ def process_trivy_results(trivy_output):
         "UNKNOWN": 0,
     }
 
-    print(f"Received Trivy output:\n{trivy_output}") # Debug
+    print(f"Received Trivy output (length: {len(trivy_output)}):\n{trivy_output}")  # Debug
 
     if not trivy_output:
         summary = "Trivy scan completed. No output from Trivy k8s."
         print(summary)
         return summary, False
 
-    #  Parse the text output.  This is more fragile than JSON, but necessary for trivy k8s
+    # Parse the text output. This is more fragile than JSON, but necessary for trivy k8s
     lines = trivy_output.splitlines()
     for line in lines:
         if "CRITICAL" in line:
@@ -68,9 +69,8 @@ def process_trivy_results(trivy_output):
     else:
         summary += "No misconfigurations found.\n"
 
-    print(f"Generated summary:\n{summary}") # Debug
+    print(f"Generated summary:\n{summary}")  # Debug
     return summary, has_issues
-
 
 
 def main(trivy_output):
@@ -80,17 +80,20 @@ def main(trivy_output):
     Args:
         trivy_output (str): The standard output from the Trivy k8s command (passed as a command-line argument).
     """
+    print(f"Python script started. GITHUB_STEP_SUMMARY: {os.environ.get('GITHUB_STEP_SUMMARY')}")  # Debug
+
     summary, has_issues = process_trivy_results(trivy_output)
 
-    print(f"GITHUB_STEP_SUMMARY: {os.environ.get('GITHUB_STEP_SUMMARY')}") # Check env var
-
-    if os.environ.get("GITHUB_STEP_SUMMARY") == "true":
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        summary_file_path = os.environ["GITHUB_STEP_SUMMARY"]
+        print(f"Writing summary to: {summary_file_path}")  # Debug
         try:
-            with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
-                print(summary, file=f)  # Print to the summary file
-            print("Successfully wrote to GITHUB_STEP_SUMMARY") # success
+            with open(summary_file_path, "a") as f:
+                f.write(summary)
+            print("Successfully wrote to GITHUB_STEP_SUMMARY")  # Success
         except Exception as e:
-            print(f"Error writing to GITHUB_STEP_SUMMARY: {e}") #error
+            print(f"Error writing to GITHUB_STEP_SUMMARY: {e}")  # Error
+            traceback.print_exc()  # Print the full traceback
     else:
         print(summary)  # Print to standard output
 
