@@ -38,11 +38,12 @@ jobs:
       
       - name: Download Trivy binary
         run: |
-          TRIVY_VERSION="0.49.3" # Replace with your desired version
-          wget "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-x86_64.tar.gz"
-          tar -xvf "trivy_${TRIVY_VERSION}_Linux-x86_64.tar.gz"
-          sudo mv trivy /usr/local/bin/
-          trivy k8s --report all --scanners misconfig
+            TRIVY_VERSION="0.49.3" # Replace with your desired version
+            FILENAME="trivy-linux-amd64-${TRIVY_VERSION}.tar.gz"
+            wget "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/${FILENAME}"
+            tar -xvf "${FILENAME}"
+            sudo mv trivy /usr/local/bin/
+            trivy k8s --report all --scanners misconfig
 
 
       - name: Install Python Dependencies
