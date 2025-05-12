@@ -1,134 +1,51 @@
-import json
-import subprocess
-from tabulate import tabulate
-import sys
+name: Kubescape Scan on Minikube
 
-def convert_kubescape_json_to_markdown(json_file):
-    """
-    Reads a Kubescape JSON output file, uses jq to transform it,
-    and converts it into a Markdown table. Handles variations in JSON structure.
+on:
+  push:
+    
 
-    Args:
-        json_file (str): The path to the Kubescape JSON file.
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    Returns:
-        str: A Markdown formatted table of the Kubescape scan results.
-    """
-    try:
-        with open(json_file, 'r') as f:
-            data = json.load(f)
-    except FileNotFoundError:
-        return f"Error: File not found: {json_file}"
-    except json.JSONDecodeError:
-        return f"Error: Invalid JSON format in: {json_file}"
+      - name: Set up Minikube
+        uses: medyagh/setup-minikube@latest
+        with:
+          kubernetes-version: 'v1.23.3'
 
-    output_string = ""
+      - name: Set up Kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.23.3'
 
-    # Extract basic metadata (always try to get this)
-    if 'apiVersion' in data:
-        output_string += f"**ApiVersion:** {data['apiVersion']}\n"
-    if 'kind' in data:
-        output_string += f"**Kind:** {data['kind']}\n"
-    if 'name' in data:
-        output_string += f"**Name:** {data['name']}\n"
-    if 'namespace' in data:
-        output_string += f"**Namespace:** {data['namespace']}\n"
+      - name: Install Kubescape
+        run: |
+          curl -s https://raw.githubusercontent.com/armosec/kubescape/master/install.sh | bash -s -- -d ./
+          export PATH=$PATH:$(pwd)
+          export PATH=$PATH:/home/runner/.kubescape/bin
+          kubescape scan framework nsa -v --format json --output results.json
+      - name: Install Python Dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install tabulate
+      - name: Convert Kubescape JSON to Markdown Table (using Python)
+        run: |
+          python3 .github/workflows/kubescape_to_markdown.py results.json > results.md
+      - name: Upload Kubescape Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kubescape_Report
+          path: results.md
 
-    # Handle resourceResults (if present)
-    if 'resourceResults' in data and data['resourceResults'] is not None:
-        jq_script_resource_centric = """
-        {
-          resources: (.resourceResults[] | {
-            resourceID: .resourceID,
-            controls: (.controls[] | {
-              controlName: .name,
-              controlId: .controlID,
-              severity: (.rules[0].severity // "N/A"),
-              docs: (.rules[0].remediation // "N/A"),
-              assistedRemediation: (.rules[0].fixPaths | join("\\n") // "N/A")
-            })
-          })
-        }
-        """
-        try:
-            process = subprocess.Popen(
-                ['jq', '-r', jq_script_resource_centric, json_file],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-            jq_output, jq_error = process.communicate()
-            if jq_error:
-                return f"Error running jq (resource-centric): {jq_error}"
-            if not jq_output.strip():
-                return "Error: jq produced no output (resource-centric). Check the input JSON."
-            transformed_data = json.loads(jq_output)
-
-            output_string += "**Resource Scan Results**\n\n"
-            for resource in transformed_data['resources']:
-                output_string += f"**Resource ID:** {resource['resourceID']}\n\n"
-                table_data = []
-                headers = ["Severity", "Control Name", "Docs", "Assisted Remediation"]
-                for control in resource['controls']:
-                    table_data.append([
-                        control['severity'],
-                        control['controlName'],
-                        control['docs'],
-                        control['assistedRemediation']
-                    ])
-                output_string += tabulate(table_data, headers=headers, tablefmt="grid") + "\n\n"
-
-        except Exception as e:
-            return f"An unexpected error occurred during resource-centric processing: {e}"
-
-    else:  # Handle cases where resourceResults is missing
-        jq_script_summary_only = """
-        {
-          controlsSummary: {
-            total: .summaryDetails.controls | length,
-            failed: (.summaryDetails.controls | map(select(.statusInfo.status == "failed")) | length),
-            actionRequired: (.summaryDetails.controls | map(select(.statusInfo.status == "actionRequired")) | length)
-          },
-          controls: [.summaryDetails.controls[] | {
-            controlName: .name,
-            controlId: .controlID
-          }]
-        }
-        """
-        try:
-            process = subprocess.Popen(
-                ['jq', '-r', jq_script_summary_only, json_file],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-            jq_output, jq_error = process.communicate()
-            if jq_error:
-                return f"Error running jq (summary-only): {jq_error}"
-            if not jq_output.strip():
-                return "Error: jq produced no output (summary-only). Check the input JSON."
-            transformed_data = json.loads(jq_output)
-
-            if 'controlsSummary' in transformed_data:
-                output_string += f"**Controls Summary:** {transformed_data['controlsSummary']['total']} (Failed: {transformed_data['controlsSummary']['failed']}, Action Required: {transformed_data['controlsSummary']['actionRequired']})\n\n"
-
-            output_string += "**Controls**\n\n"
-            table_data = []
-            headers = ["Control Name"]
-            for control in transformed_data['controls']:
-                table_data.append([control['controlName']])
-            output_string += tabulate(table_data, headers=headers, tablefmt="grid")
-
-        except Exception as e:
-            return f"An unexpected error occurred during summary-only processing: {e}"
-
-    return output_string
-
-if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python kubescape_to_markdown.py <path_to_results.json>")
-        sys.exit(1)
-
-    json_file_path = sys.argv[1]
-    markdown_output = convert_kubescape_json_to_markdown(json_file_path)
-    print(markdown_output)
+      - name: Output results to Summary
+        if: always()
+        run: |
+          cat results.md >> $GITHUB_STEP_SUMMARY
+      - name: Upload results.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kubescape_JSON_Output
+          path: results.json
