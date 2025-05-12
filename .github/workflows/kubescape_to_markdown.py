@@ -32,19 +32,18 @@ def convert_kubescape_json_to_markdown_with_jq(json_file):
       controlsSummary: {
         total: .summaryDetails.controls | length,
         failed: (.summaryDetails.controls | map(select(.statusInfo.status == "failed")) | length),
-        //actionRequired: "N/A" # Action Required is not consistently available
         actionRequired: (.summaryDetails.controls | map(select(.statusInfo.status == "actionRequired")) | length)
       },
       controls: [.summaryDetails.controls[] | {
         controlName: .name,
         controlId: .controlID
-      }] ,
+      }],
       resourceControls: (.resourceResults[] | .controls[] | {
           controlId: .controlID,
-          severity: (.rules[0].severity // "N/A"),  # Use // to provide default
+          severity: (.rules[0].severity // "N/A"),
           docs: (.rules[0].remediation // "N/A"),
           assistedRemediation: (.rules[0].fixPaths | join("\\n") // "N/A")
-        } )
+        })
     }
     """
 
