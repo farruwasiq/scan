@@ -52,29 +52,35 @@ def convert_kubescape_json_to_markdown(json_file):
     table_data = []
     headers = ["Severity", "Control Name", "Docs", "Assisted Remediation"]
 
+    # Create a dictionary to map control names to details from resourceResults
+    control_details_map = {}
+    if 'resourceResults' in data and isinstance(data['resourceResults'], list):
+        for resource_result in data['resourceResults']:
+            if 'controls' in resource_result and isinstance(resource_result['controls'], list):
+                for resource_control in resource_result['controls']:
+                    control_id = resource_control.get('controlID')
+                    if control_id:
+                        # Store details, potentially overwriting if the same ID appears multiple times
+                        if 'rules' in resource_control and isinstance(resource_control['rules'], list) and resource_control['rules']: #Check if rules exist
+                            first_rule = resource_control['rules'][0] # Take the first rule
+                            control_details_map[control_id] = {
+                                'severity': first_rule.get('severity', 'N/A'),
+                                'docs': first_rule.get('remediation', 'N/A'),
+                                'assisted_remediation': "\n".join([f"`{path}`" for path in first_rule.get('fixPaths', [])]) if first_rule.get('fixPaths') else "N/A"
+                            }
+
     for control_id, control in controls_data.items():
         severity = "N/A"
         control_name = control.get('name', 'N/A')
         docs_url = "N/A"
         assisted_remediation = "N/A"
 
-        # Attempt to get more details from resourceResults (if available)
-        if 'resourceResults' in data and isinstance(data['resourceResults'], list):
-            for resource_result in data['resourceResults']:
-                if 'controls' in resource_result and isinstance(resource_result['controls'], list):
-                    for resource_control in resource_result['controls']:
-                        if resource_control.get('controlID') == control_id:
-                            if 'rules' in resource_control and isinstance(resource_control['rules'], list):
-                                # For simplicity, take the first rule's data if multiple rules exist
-                                first_rule = resource_control['rules'][0]
-                                severity = first_rule.get('severity', 'N/A')
-                                docs_url = first_rule.get('remediation', 'N/A')
-                                assisted_remediation_list = first_rule.get('fixPaths', [])
-                                assisted_remediation = "\n".join([f"`{path}`" for path in assisted_remediation_list]) if assisted_remediation_list else "N/A"
-                            break  # Stop searching within resourceResults once we find a match
-                    else:
-                        continue # Continue outer loop if inner loop wasn't broken
-                    break # Stop searching resourceResults
+        # Try to get details from the map
+        if control_id in control_details_map:
+            details = control_details_map[control_id]
+            severity = details['severity']
+            docs_url = details['docs']
+            assisted_remediation = details['assisted_remediation']
 
         table_data.append([severity, control_name, docs_url, assisted_remediation])
 
