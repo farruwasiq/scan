@@ -56,7 +56,7 @@ jobs:
         continue-on-error: true # important.  Don't fail for trivy issues.
 
       - name: Post Trivy results summary
-        run: python .github/scripts/trivy_summary.py
+        run: python .github/workflows/scripts/trivy_summary.py
         env:
           GITHUB_STEP_SUMMARY: true
 
