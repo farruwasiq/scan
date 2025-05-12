@@ -16,8 +16,11 @@ try:
         "\"severity\": \"Medium\", " +
         "\"control_name\": (.value.name // \"N/A\"), " +
         "\"doc_link\": \"https://hub.armosec.io/docs/\" + (.key | ascii_downcase), " +
-        "\"remediation\": (.value.resourceIDs? | to_entries | map(.value.relatedObjects?[]? | " +
-        "(.rules?[]?.resources?[0] // .rules?[]?.verbs?[0] // .rules?[]?.apiGroups?[0] // .roleRef?.name // .subjects?[]?.name) // \"No remediation available\") | join(\"\\n\") // \"No remediation available\") " +
+        "\"remediation\": (" +
+        "(.value.resourceIDs // {}) | to_entries | " +
+        "map(.value.relatedObjects[]? | " +
+        "(.rules?[]?.resources?[0] // .rules?[]?.verbs?[0] // .rules?[]?.apiGroups?[0] // .roleRef?.name // .subjects?[]?.name) " +
+        ") | join(\"\\n\") // \"No remediation available\") " +
         "})"
     )
 
