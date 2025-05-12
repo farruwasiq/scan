@@ -44,7 +44,7 @@ jobs:
             sudo apt-get update
             sudo apt-get install trivy
 
-            sudo mv trivy /usr/local/bin/
+            
             trivy k8s --report all --scanners misconfig
 
 
