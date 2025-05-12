@@ -56,8 +56,13 @@ jobs:
           trivy k8s --report all --scanners misconfig > trivy_k8s_output.txt
 
       - name: Post Trivy results summary
+        if: always()
         run: |
-          python .github/workflows/scripts/trivy_summary.py < trivy_k8s_output.txt
+          if [ -s "trivy_k8s_output.txt" ]; then
+            python .github/workflows/scripts/trivy_summary.py < trivy_k8s_output.txt
+          else
+            echo "No Trivy output file found or file is empty."
+          fi
         env:
           GITHUB_STEP_SUMMARY: ${{ github.step_summary }}
 
